@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /gallery/ma.jpg
+Disallow: /gallery/favicon.jpg
+Disallow: /gallery_gen/9254f5dea08120b70a0a81707353302f_285x140.png
