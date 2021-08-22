@@ -9,6 +9,9 @@ body, .wb_sbg { min-width: 320px; min-height: 2460px; }
 .root { width: 320px; min-height: 2460px; overflow: hidden; }
 .sm_icon:hover { -webkit-filter: brightness(80%) !important; }
 .wb_stl_custom { font: normal normal 16px 'Open Sans',sans-serif; font-weight: 500; color: #333333; }
+.wb_element.wb_element_picture {
+    z-index: 9001 !important;
+}
 #wb_element_instance0 .btn-collapser { display: inline-block; margin-top: 0.5px; background-color: transparent; border-color: #91a351; }
 #wb_element_instance0 .btn-collapser > .icon-bar { background-color: #91a351; }
 #wb_element_instance0 .btn-collapser:hover { background-color: transparent; border-color: #587175; }
