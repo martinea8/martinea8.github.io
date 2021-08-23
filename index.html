@@ -130,7 +130,9 @@
                         }
                     });
                     window.onbeforeunload = () => {
-                        document.getElementsByTagName('form').reset();
+                          for(const form of document.getElementsByTagName('form')) {
+                            form.reset();
+                          }
                     }
                 </script>
             </div>
