@@ -12,6 +12,9 @@ body, .wb_sbg { min-width: 320px; min-height: 2460px; }
 .wb_element.wb_element_picture {
     z-index: 9001 !important;
 }
+.form-area-field {
+    height: inherit !important;
+}
 #wb_element_instance0 .btn-collapser { display: inline-block; margin-top: 0.5px; background-color: transparent; border-color: #91a351; }
 #wb_element_instance0 .btn-collapser > .icon-bar { background-color: #91a351; }
 #wb_element_instance0 .btn-collapser:hover { background-color: transparent; border-color: #587175; }
