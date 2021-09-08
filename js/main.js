@@ -21,7 +21,6 @@ function wb_form_validateForm(formId, values, errors) {
 }
 
 $(function() {
-    $("a[title=\"Hosted on free web hosting 000webhost.com. Host your own website for FREE.\"]").closest("div").hide();
 	var comboBoxes = $('.wb-combobox-controll');
 	if (comboBoxes.length) {
 		comboBoxes.each(function() {
