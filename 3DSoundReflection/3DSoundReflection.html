@@ -78,7 +78,7 @@
 
         // Update camera position
         // Set camera position and orientation to view the room
-        camera.position.set(0, 0, 10); // Position the camera outside the room
+        camera.position.set(0, roomWidth, 0); // Position the camera at the top of the room
         camera.lookAt(0, 0, 0); // Orient the camera towards the center of the room
         camera.fov = 75; // Field of view angle (adjust as needed)
         camera.aspect = window.innerWidth / window.innerHeight; // Aspect ratio
@@ -222,9 +222,6 @@
                             listenerSphere.rotation.z = reflectionAngleRad;
 
                             listenerSphere.position.copy(listenerPosition);
-
-                            camera.rotation.copy(reflectionAngleRad);                           
-                            camera.position.copy(listenerPosition);
 
                             // Get the frequency data from the analyser
                             const frequencyData = new Uint8Array(analyser.frequencyBinCount);
