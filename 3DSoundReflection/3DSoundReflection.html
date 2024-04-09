@@ -26,27 +26,28 @@
         scene.add(soundSource);
 
         // Load and play the sound/music file
-        function loadSound(soundURL) {
+        async function loadSound(soundURL) {
             debugger;
-            // Initialize Web Audio API context
-            var audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-            fetch(soundURL, {
-                    method: "GET",
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                })
-              .then(response => response.arrayBuffer())
-              .then(arrayBuffer => audioContext.decodeAudioData(response.arrayBuffer()))
-              .then(audioBuffer => {
-                  const audioSource = audioContext.createBufferSource();
-                  audioSource.buffer = audioBuffer;
-                  audioSource.connect(audioContext.destination);
-                  audioSource.start();
-              })
-              .catch(error => console.error('Error loading sound:', error));
+            try {
+                // Initialize Web Audio API context
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+                const response = await fetch(soundURL, {
+                        method: "GET",
+                        mode: 'cors',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                // Decode it
+                arrayBuffer = await audioContext.decodeAudioData(await response.arrayBuffer());
+                audioSource = audioContext.createBufferSource();
+                audioSource.buffer = audioBuffer;
+                audioSource.connect(audioContext.destination);
+                audioSource.start();
+            } catch (err) {
+                console.error(`Unable to fetch the audio file. Error: ${err.message}`);
+            }
         }
 
         // Simulation parameters
