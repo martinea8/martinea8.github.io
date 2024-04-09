@@ -108,7 +108,7 @@
                 const destination = walls[index].position;
                 const movementVector = new THREE.Vector3().subVectors(destination, soundSource.position);
                 movementVector.normalize(); // Normalize the movement vector
-                movementVector.multiplyScalar(speedOfSound * time); // Scale by speed and time to get displacement
+                movementVector.multiplyScalar(soundSpeed * time); // Scale by speed and time to get displacement
                 animateSoundPropagation(plane, movementVector, time); // Start animation
 
                 // Add the sound propagation object to the scene
