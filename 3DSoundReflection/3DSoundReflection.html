@@ -9,8 +9,14 @@
 </head>
 <body onclick="callSimulation()">
     <script>
-        // Your JavaScript code here
-        // Import Three.js library
+        
+        // Simulation parameters
+        let roomWidth = 45; // Width of the room in meters
+        let roomHeight = 3; // Height of the room in meters
+        let roomDepth = 45; // Depth of the room in meters
+        let soundSpeed = 343; // Speed of sound in air in m/s (at room temperature)
+        let distanceToWall = 40; // Distance from the sound source to the wall obstacle in meters
+        let wallAbsorptionCoefficient = 0.5; // Coefficient of sound absorption of the walls (range: 0 to 1)
 
         // Initialize Three.js scene, camera, and renderer
         const scene = new THREE.Scene();
@@ -20,27 +26,38 @@
         document.body.appendChild(renderer.domElement);
 
         // Create walls for the room
-        const wallMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff }); // White color for walls
-        const wallGeometry = new THREE.BoxGeometry(4, 3, 2); // Dimensions of the room (adjust as needed)
+        const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x800080 }); // Purple color for walls
+        const wallGeometry = new THREE.BoxGeometry(roomWidth, roomHeight, roomDepth); // Dimensions of the room (adjust as needed)
         const walls = [];
 
         // Create each wall and position it accordingly
         const leftWall = new THREE.Mesh(wallGeometry, wallMaterial);
-        leftWall.position.set(-2, 0, 0);
+        leftWall.position.set(-roomWidth / 2, 0, 0);
+        leftWall.rotation.y = Math.PI / 2;
         walls.push(leftWall);
 
         const rightWall = new THREE.Mesh(wallGeometry, wallMaterial);
-        rightWall.position.set(2, 0, 0);
+        rightWall.position.set(roomWidth / 2, 0, 0);
+        rightWall.rotation.y = Math.PI / 2;
         walls.push(rightWall);
 
         const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
-        backWall.position.set(0, 0, -1);
-        backWall.rotation.y = Math.PI; // Rotate the wall to face inward
+        backWall.position.set(0, 0, -roomDepth / 2);
         walls.push(backWall);
 
         const frontWall = new THREE.Mesh(wallGeometry, wallMaterial);
-        frontWall.position.set(0, 0, 1);
+        frontWall.position.set(0, 0, roomDepth / 2);
         walls.push(frontWall);
+
+        const topWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        topWall.position.set(0, roomHeight / 2, 0);
+        topWall.rotation.x = Math.PI / 2;
+        walls.push(topWall);
+
+        const bottomWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        bottomWall.position.set(0, -roomHeight / 2, 0);
+        bottomWall.rotation.x = Math.PI / 2;
+        walls.push(bottomWall);
 
         // Add walls to the scene
         walls.forEach(wall => {
@@ -49,7 +66,7 @@
 
         // Create a sound source object (e.g., a sphere)
         const sourceGeometry = new THREE.SphereGeometry(0.1, 32, 32);
-        const sourceMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const sourceMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue color
         const soundSource = new THREE.Mesh(sourceGeometry, sourceMaterial);
         soundSource.position.set(-2, -1.5, -1); // Set position of sound source
         scene.add(soundSource);
@@ -149,14 +166,6 @@
                 console.error(`Unable to fetch the audio file. Error: ${err.message}`);
             }
         }
-
-        // Simulation parameters
-        let roomWidth = 45; // Width of the room in meters
-        let roomHeight = 43; // Height of the room in meters
-        let roomDepth = 44; // Depth of the room in meters
-        let soundSpeed = 343; // Speed of sound in air in m/s (at room temperature)
-        let distanceToWall = 40; // Distance from the sound source to the wall obstacle in meters
-        let wallAbsorptionCoefficient = 0.5; // Coefficient of sound absorption of the walls (range: 0 to 1)
 
         // Simulate sound wave propagation and reflections
         function simulateSoundWaves(roomTemp, wallDistance, absorptionCoefficient) {
@@ -278,12 +287,12 @@
         {
             // Update camera position
             // Set camera position and orientation to view the room
-            camera.position.set(0, 0, 5); // Position the camera outside the room
+            camera.position.set(0, 0, 10); // Position the camera outside the room
             camera.lookAt(0, 0, 0); // Orient the camera towards the center of the room
             camera.fov = 75; // Field of view angle (adjust as needed)
             camera.aspect = window.innerWidth / window.innerHeight; // Aspect ratio
             camera.near = 0.1; // Near clipping plane distance
-            camera.far = 10; // Far clipping plane distance
+            camera.far = 100; // Far clipping plane distance
             camera.updateProjectionMatrix(); // Update camera projection matrix
 
             // Visualize sound propagation from the source to the walls
