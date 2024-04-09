@@ -134,8 +134,8 @@
                             listenerSphere.material.color.copy(newColor);
 
                             // Update position of the sound waves (optional)
-                            //const newPosition = new THREE.Vector3(x, y, -2 - averageFrequency * 0.1); // Adjust position based on average frequency
-                            const newPosition = calculateReflectionPositionWithAudio(listenerPosition, angleOfReflection, averageFrequency);
+                            const newPosition = new THREE.Vector3(x, y, -2 - averageFrequency * 0.1); // Adjust position based on average frequency
+                            //const newPosition = calculateReflectionPositionWithAudio(listenerPosition, angleOfReflection, averageFrequency);
                             listenerSphere.position.copy(newPosition);
 
                             scene.add(listenerSphere);
