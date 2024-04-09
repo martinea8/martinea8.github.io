@@ -141,6 +141,15 @@
             requestAnimationFrame(simulateSoundWaves);
         }
 
+        // Function to calculate the average frequency from frequency data
+        function getAverageFrequency(frequencyData) {
+            let sum = 0;
+            for (let i = 0; i < frequencyData.length; i++) {
+                sum += frequencyData[i];
+            }
+            return sum / frequencyData.length;
+        }
+
         // Render loop
         function animate() {
             requestAnimationFrame(animate);
