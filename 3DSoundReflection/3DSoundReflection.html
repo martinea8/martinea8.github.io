@@ -69,7 +69,7 @@
         let roomHeight = 43; // Height of the room in meters
         let roomDepth = 44; // Depth of the room in meters
         let soundSpeed = 343; // Speed of sound in air in m/s (at room temperature)
-        let distanceToWall = 1; // Distance from the sound source to the wall obstacle in meters
+        let distanceToWall = 45; // Distance from the sound source to the wall obstacle in meters
         let wallAbsorptionCoefficient = 0.5; // Coefficient of sound absorption of the walls (range: 0 to 1)
 
         // Simulate sound wave propagation and reflections
@@ -165,6 +165,9 @@
 
             // Update camera position
             camera.position.z = 0;
+
+            camera.position.x = 0;
+            camera.position.y = 0;
 
             animate();
         }
