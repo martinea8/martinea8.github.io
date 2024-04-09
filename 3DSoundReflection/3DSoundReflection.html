@@ -1,0 +1,118 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Wave Simulation</title>
+    <!-- Import Three.js library -->
+    <script src="three.min.js"></script>
+</head>
+<body onclick="callSimulation()">
+    <script>
+        // Your JavaScript code here
+        // Import Three.js library
+
+        // Initialize Three.js scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Create a sound source object (e.g., a sphere)
+        const sourceGeometry = new THREE.SphereGeometry(0.1, 32, 32);
+        const sourceMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const soundSource = new THREE.Mesh(sourceGeometry, sourceMaterial);
+        scene.add(soundSource);
+
+        // Load and play the sound/music file
+        function loadSound(soundURL) {
+            // Initialize Web Audio API context
+            var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            fetch(soundURL, {
+                mode: 'no-cors'
+            })
+              .then(response => response.arrayBuffer())
+              .then(arrayBuffer => audioContext.decodeAudioData(response.arrayBuffer()))
+              .then(audioBuffer => {
+                  const audioSource = audioContext.createBufferSource();
+                  audioSource.buffer = audioBuffer;
+                  audioSource.connect(audioContext.destination);
+                  audioSource.start();
+              })
+              .catch(error => console.error('Error loading sound:', error));
+        }
+
+        // Simulation parameters
+        let roomWidth = 5; // Width of the room in meters
+        let roomHeight = 3; // Height of the room in meters
+        let roomDepth = 4; // Depth of the room in meters
+        let soundSpeed = 343; // Speed of sound in air in m/s (at room temperature)
+        let distanceToWall = 1; // Distance from the sound source to the wall obstacle in meters
+        let wallAbsorptionCoefficient = 0.5; // Coefficient of sound absorption of the walls (range: 0 to 1)
+
+        // Simulate sound wave propagation and reflections
+        function simulateSoundWaves(soundURL, roomTemp, wallDistance, absorptionCoefficient) {
+            // Set simulation parameters based on input
+            soundSpeed = 331.4 + (0.6 * roomTemp);
+            distanceToWall = wallDistance;
+            wallAbsorptionCoefficient = absorptionCoefficient;
+
+            // Load and play sound/music file
+            loadSound(soundURL);
+
+            for (let x = 0; x < roomWidth; x++) {
+                for (let y = 0; y < roomHeight; y++) {
+                    for (let z = 0; z < roomDepth; z++) {
+                        const listenerPosition = new THREE.Vector3(x, y, z);
+                        const distance = soundSource.position.distanceTo(listenerPosition);
+                        const timeToReach = distance / soundSpeed;
+
+                        // Calculate direction vector from sound source to listener
+                        const direction = listenerPosition.clone().sub(soundSource.position).normalize();
+
+                        // Calculate angle of incidence
+                        const angleOfIncidence = Math.acos(direction.dot(new THREE.Vector3(0, 0, 1))) * (180 / Math.PI);
+
+                        // Calculate angle of reflection (assuming perfect reflection off walls)
+                        const angleOfReflection = angleOfIncidence;
+
+                        // Create a sphere at the listener position with a delay based on timeToReach
+                        setTimeout(() => {
+                            const listenerGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+                            const listenerMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+                            const listenerSphere = new THREE.Mesh(listenerGeometry, listenerMaterial);
+
+                            // Apply rotation based on angle of reflection
+                            listenerSphere.rotateX((angleOfReflection - 90) * (Math.PI / 180));
+
+                            listenerSphere.position.copy(listenerPosition);
+                            scene.add(listenerSphere);
+                        }, timeToReach * 1000); // Convert time to milliseconds
+                    }
+                }
+            }
+        }
+
+        // Render loop
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        function callSimulation()
+        {
+            // Call the function with input parameters
+            simulateSoundWaves('https://samplelib.com/lib/preview/mp3/sample-15s.mp3', 20, 1, 0.5);
+
+            // Update camera position
+            camera.position.z = 5;
+
+
+            animate();
+        }
+
+    </script>
+</body>
+</html>

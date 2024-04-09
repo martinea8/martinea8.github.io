@@ -1,0 +1,32 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body onclick="loadAudio();">Test
+    <script>
+        async function loadAudio() {
+            debugger;
+            try {
+                // Initialize Web Audio API context
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Load an audio file
+                const response = await fetch('https://samplelib.com/lib/preview/mp3/sample-15s.mp3', {
+                    method: "POST",
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                // Decode it
+                buffer = await audioCtx.decodeAudioData(await response.arrayBuffer());
+            } catch (err) {
+                console.error(`Unable to fetch the audio file. Error: ${err.message}`);
+            }
+        }
+    </script>
+</body>
+</html>
