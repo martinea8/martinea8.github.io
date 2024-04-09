@@ -30,33 +30,35 @@
         async function loadSound(soundURL) {
             debugger;
             try {
-                // Initialize Web Audio API context
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
-                const response = await fetch(soundURL, {
+                if (analyser == null)
+                {
+                    // Initialize Web Audio API context
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                    const response = await fetch(soundURL, {
                         method: "GET",
                         mode: 'cors',
                         headers: {
                             'Content-Type': 'application/json',
                         }
                     });
-                // Decode it
-                arrayBuffer = await audioContext.decodeAudioData(await response.arrayBuffer());
-                audioSource = audioContext.createBufferSource();
-                audioSource.buffer = arrayBuffer;
-                //audioSource.connect(audioContext.destination);
+                    // Decode it
+                    arrayBuffer = await audioContext.decodeAudioData(await response.arrayBuffer());
+                    audioSource = audioContext.createBufferSource();
+                    audioSource.buffer = arrayBuffer;
+                    //audioSource.connect(audioContext.destination);
 
-                // Create AnalyserNode to analyze the audio data
-                analyser = audioContext.createAnalyser();
-                audioSource.connect(analyser);
-                analyser.connect(audioContext.destination);
+                    // Create AnalyserNode to analyze the audio data
+                    analyser = audioContext.createAnalyser();
+                    audioSource.connect(analyser);
+                    analyser.connect(audioContext.destination);
 
-                // Start playing the audio
-                audioSource.start();
+                    // Start playing the audio
+                    audioSource.start();
 
-                // Simulate sound waves propagation and reflections with input parameters
-                simulateSoundWaves('arcade fire - ready to start.mp3', 20, 1, 0.5);
-
+                    // Simulate sound waves propagation and reflections with input parameters
+                    simulateSoundWaves('arcade fire - ready to start.mp3', 20, 1, 0.5);
+                }
             } catch (err) {
                 console.error(`Unable to fetch the audio file. Error: ${err.message}`);
             }
@@ -75,16 +77,6 @@
             debugger;
             if (!analyser) return;
 
-            // Get the frequency data from the analyser
-            const frequencyData = new Uint8Array(analyser.frequencyBinCount);
-            analyser.getByteFrequencyData(frequencyData);
-
-            // Update the visualization based on the frequency data
-            const averageFrequency = getAverageFrequency(frequencyData);
-            
-            // Calculate scaling factor based on average frequency (adjust as needed)
-            const scaleFactor = averageFrequency / 255; // Normalize to range [0, 1]
-            
             // Set simulation parameters based on input
             soundSpeed = 331.4 + (0.6 * roomTemp);
             distanceToWall = wallDistance;
@@ -119,6 +111,16 @@
                             listenerSphere.rotateX((angleOfReflection - 90) * (Math.PI / 180));
 
                             listenerSphere.position.copy(listenerPosition);
+
+                            // Get the frequency data from the analyser
+                            const frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                            analyser.getByteFrequencyData(frequencyData);
+
+                            // Update the visualization based on the frequency data
+                            const averageFrequency = getAverageFrequency(frequencyData);
+
+                            // Calculate scaling factor based on average frequency (adjust as needed)
+                            const scaleFactor = averageFrequency / 255; // Normalize to range [0, 1]
 
                             //// Update size of the sound waves
                             //listenerSphere.scale.set(scaleFactor, scaleFactor, scaleFactor);
@@ -162,8 +164,7 @@
             loadSound('arcade fire - ready to start.mp3');
 
             // Update camera position
-            camera.position.z = 5;
-
+            camera.position.z = 0;
 
             animate();
         }
