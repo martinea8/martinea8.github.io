@@ -42,7 +42,7 @@
                 // Decode it
                 arrayBuffer = await audioContext.decodeAudioData(await response.arrayBuffer());
                 audioSource = audioContext.createBufferSource();
-                audioSource.buffer = audioBuffer;
+                audioSource.buffer = arrayBuffer;
                 audioSource.connect(audioContext.destination);
                 audioSource.start();
             } catch (err) {
