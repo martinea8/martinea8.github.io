@@ -73,7 +73,8 @@
         const sourceGeometry = new THREE.SphereGeometry(0.1, 32, 32);
         const sourceMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue color
         const soundSource = new THREE.Mesh(sourceGeometry, sourceMaterial);
-        soundSource.position.set(-2, -1.5, -1); // Set position of sound source
+        soundSource.position.set(-roomWidth / 2, -roomWidth / 2, -roomWidth / 2); // Position at the corner of the room
+
         scene.add(soundSource);
 
         // Update camera position
