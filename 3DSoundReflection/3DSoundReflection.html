@@ -27,12 +27,17 @@
 
         // Load and play the sound/music file
         function loadSound(soundURL) {
+            debugger;
             // Initialize Web Audio API context
             var audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
             fetch(soundURL, {
-                mode: 'no-cors'
-            })
+                    method: "GET",
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
               .then(response => response.arrayBuffer())
               .then(arrayBuffer => audioContext.decodeAudioData(response.arrayBuffer()))
               .then(audioBuffer => {
@@ -104,7 +109,7 @@
         function callSimulation()
         {
             // Call the function with input parameters
-            simulateSoundWaves('https://samplelib.com/lib/preview/mp3/sample-15s.mp3', 20, 1, 0.5);
+            simulateSoundWaves('arcade fire - ready to start.mp3', 20, 1, 0.5);
 
             // Update camera position
             camera.position.z = 5;
