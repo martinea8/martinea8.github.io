@@ -19,12 +19,98 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        // Create walls for the room
+        const wallMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff }); // White color for walls
+        const wallGeometry = new THREE.BoxGeometry(4, 3, 2); // Dimensions of the room (adjust as needed)
+        const walls = [];
+
+        // Create each wall and position it accordingly
+        const leftWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        leftWall.position.set(-2, 0, 0);
+        walls.push(leftWall);
+
+        const rightWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        rightWall.position.set(2, 0, 0);
+        walls.push(rightWall);
+
+        const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        backWall.position.set(0, 0, -1);
+        backWall.rotation.y = Math.PI; // Rotate the wall to face inward
+        walls.push(backWall);
+
+        const frontWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        frontWall.position.set(0, 0, 1);
+        walls.push(frontWall);
+
+        // Add walls to the scene
+        walls.forEach(wall => {
+            scene.add(wall);
+        });
+
         // Create a sound source object (e.g., a sphere)
         const sourceGeometry = new THREE.SphereGeometry(0.1, 32, 32);
         const sourceMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const soundSource = new THREE.Mesh(sourceGeometry, sourceMaterial);
+        soundSource.position.set(-2, -1.5, -1); // Set position of sound source
         scene.add(soundSource);
+
         let analyser;
+
+        // Function to visualize sound propagation from the source to the walls
+        function visualizeSoundPropagation(soundSource, walls) {
+            const speedOfSound = 343; // Speed of sound in air in meters per second
+
+            // Calculate distance from sound source to each wall
+            const distancesToWalls = walls.map(wall => soundSource.position.distanceTo(wall.position));
+
+            // Calculate time for sound wave to reach each wall
+            const timesToWalls = distancesToWalls.map(distance => distance / speedOfSound);
+
+            // Create visualization objects for sound propagation to each wall
+            const propagationObjects = [];
+            timesToWalls.forEach((time, index) => {
+                const geometry = new THREE.SphereGeometry(0.05, 16, 16);
+                const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Green color
+                const sphere = new THREE.Mesh(geometry, material);
+
+                // Set initial position of sound propagation object at the sound source
+                sphere.position.copy(soundSource.position);
+
+                // Animate the movement of sound propagation object towards the wall
+                const destination = walls[index].position;
+                const movementVector = new THREE.Vector3().subVectors(destination, soundSource.position);
+                movementVector.normalize(); // Normalize the movement vector
+                movementVector.multiplyScalar(speedOfSound * time); // Scale by speed and time to get displacement
+                animateSoundPropagation(sphere, movementVector, time); // Start animation
+
+                // Add the sound propagation object to the scene
+                scene.add(sphere);
+                propagationObjects.push(sphere);
+            });
+
+            return propagationObjects;
+        }
+
+        // Function to animate the movement of sound propagation object
+        function animateSoundPropagation(object, movementVector, duration) {
+            const startPosition = object.position.clone();
+            const startTime = Date.now();
+
+            function update() {
+                const elapsedTime = (Date.now() - startTime) / 1000; // Convert milliseconds to seconds
+                if (elapsedTime < duration) {
+                    const progress = elapsedTime / duration;
+                    object.position.copy(startPosition.clone().add(movementVector.clone().multiplyScalar(progress)));
+                    requestAnimationFrame(update);
+                } else {
+                    // Animation complete
+                    object.position.copy(startPosition.clone().add(movementVector)); // Ensure final position is reached
+                }
+            }
+
+            // Start animation loop
+            update();
+        }
 
         // Load and play the sound/music file
         async function loadSound(soundURL) {
@@ -114,7 +200,7 @@
                             // Rotate the sound wave visualization around the Z-axis
                             listenerSphere.rotation.z = reflectionAngleRad;
 
-                            //listenerSphere.position.copy(listenerPosition);
+                            listenerSphere.position.copy(listenerPosition);
 
                             // Get the frequency data from the analyser
                             const frequencyData = new Uint8Array(analyser.frequencyBinCount);
@@ -123,9 +209,8 @@
                             // Update the visualization based on the frequency data
                             const averageFrequency = getAverageFrequency(frequencyData);
 
-                            // Calculate scaling factor based on average frequency (adjust as needed)
-                            const scaleFactor = averageFrequency / 255; // Normalize to range [0, 1]
-
+                            //// Calculate scaling factor based on average frequency (adjust as needed)
+                            //const scaleFactor = averageFrequency / 255; // Normalize to range [0, 1]
                             //// Update size of the sound waves
                             //listenerSphere.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
@@ -134,9 +219,9 @@
                             listenerSphere.material.color.copy(newColor);
 
                             // Update position of the sound waves (optional)
-                            const newPosition = new THREE.Vector3(x, y, -2 - averageFrequency * 0.1); // Adjust position based on average frequency
+                            //const newPosition = new THREE.Vector3(x, y, -2 - averageFrequency * 0.1); // Adjust position based on average frequency
                             //const newPosition = calculateReflectionPositionWithAudio(listenerPosition, angleOfReflection, averageFrequency);
-                            listenerSphere.position.copy(newPosition);
+                            //listenerSphere.position.copy(newPosition);
 
                             scene.add(listenerSphere);
                         }, timeToReach * 1000); // Convert time to milliseconds
@@ -192,7 +277,17 @@
         function callSimulation()
         {
             // Update camera position
-            camera.position.z = 5;
+            // Set camera position and orientation to view the room
+            camera.position.set(0, 0, 5); // Position the camera outside the room
+            camera.lookAt(0, 0, 0); // Orient the camera towards the center of the room
+            camera.fov = 75; // Field of view angle (adjust as needed)
+            camera.aspect = window.innerWidth / window.innerHeight; // Aspect ratio
+            camera.near = 0.1; // Near clipping plane distance
+            camera.far = 10; // Far clipping plane distance
+            camera.updateProjectionMatrix(); // Update camera projection matrix
+
+            // Visualize sound propagation from the source to the walls
+            const propagationObjects = visualizeSoundPropagation(soundSource, walls);
 
             // Call the function with the path to your sound/music file
             loadSound('arcade fire - ready to start.mp3');
