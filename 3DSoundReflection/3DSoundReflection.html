@@ -17,6 +17,8 @@
         let soundSpeed = 343; // Speed of sound in air in m/s (at room temperature)
         let distanceToWall = 18; // Distance from the sound source to the wall obstacle in meters
         let wallAbsorptionCoefficient = 0.5; // Coefficient of sound absorption of the walls (range: 0 to 1)
+        
+        let analyser;
 
         // Initialize Three.js scene, camera, and renderer
         const scene = new THREE.Scene();
@@ -71,7 +73,18 @@
         soundSource.position.set(-2, -1.5, -1); // Set position of sound source
         scene.add(soundSource);
 
-        let analyser;
+        // Update camera position
+        // Set camera position and orientation to view the room
+        camera.position.set(0, 0, 10); // Position the camera outside the room
+        camera.lookAt(0, 0, 0); // Orient the camera towards the center of the room
+        camera.fov = 75; // Field of view angle (adjust as needed)
+        camera.aspect = window.innerWidth / window.innerHeight; // Aspect ratio
+        camera.near = 0.1; // Near clipping plane distance
+        camera.far = 100; // Far clipping plane distance
+        camera.updateProjectionMatrix(); // Update camera projection matrix
+
+        // Visualize sound propagation from the source to the walls
+        const propagationObjects = visualizeSoundPropagation(soundSource, walls);
 
         // Function to visualize sound propagation from the source to the walls
         function visualizeSoundPropagation(soundSource, walls) {
@@ -86,7 +99,7 @@
             const propagationObjects = [];
             timesToWalls.forEach((time, index) => {
                 const geometry = new THREE.PlaneGeometry(0.1, 0.1);
-                const material = THREE.MeshBasicMaterial({ color: 0x0000ff, side: THREE.DoubleSide });
+                const material = new THREE.MeshBasicMaterial({ color: 0x0000ff, side: THREE.DoubleSide });
                 const plane = new THREE.Mesh(geometry, material);
 
                 // Set initial position of sound propagation object at the sound source
@@ -284,19 +297,6 @@
 
         function callSimulation()
         {
-            // Update camera position
-            // Set camera position and orientation to view the room
-            camera.position.set(0, 0, 10); // Position the camera outside the room
-            camera.lookAt(0, 0, 0); // Orient the camera towards the center of the room
-            camera.fov = 75; // Field of view angle (adjust as needed)
-            camera.aspect = window.innerWidth / window.innerHeight; // Aspect ratio
-            camera.near = 0.1; // Near clipping plane distance
-            camera.far = 100; // Far clipping plane distance
-            camera.updateProjectionMatrix(); // Update camera projection matrix
-
-            // Visualize sound propagation from the source to the walls
-            const propagationObjects = visualizeSoundPropagation(soundSource, walls);
-
             // Call the function with the path to your sound/music file
             loadSound('arcade fire - ready to start.mp3');
 
