@@ -56,12 +56,12 @@
 
         const topWall = new THREE.Mesh(wallGeometry, transparentMaterial);
         topWall.position.set(0, roomHeight / 2, 0);
-        topWall.rotation.x = Math.PI;
+        topWall.rotation.x = Math.PI / 2; // Rotate the wall to face downward
         walls.push(topWall);
 
         const bottomWall = new THREE.Mesh(wallGeometry, wallMaterial);
         bottomWall.position.set(0, -roomHeight / 2, 0);
-        bottomWall.rotation.x = Math.PI; // Rotate the wall to face downward
+        bottomWall.rotation.x = Math.PI / 2; // Rotate the wall to face upward
         walls.push(bottomWall);
 
         // Add walls to the scene
@@ -78,7 +78,7 @@
 
         // Update camera position
         // Set camera position and orientation to view the room
-        camera.position.set(0, roomWidth, 0); // Position the camera at the top of the room
+        camera.position.set(0, roomWidth * 1.5, 0); // Position the camera at the top of the room
         camera.lookAt(0, 0, 0); // Orient the camera towards the center of the room
         camera.fov = 75; // Field of view angle (adjust as needed)
         camera.aspect = window.innerWidth / window.innerHeight; // Aspect ratio
@@ -99,7 +99,7 @@
             const propagationObjects = [];
             timesToWalls.forEach((time, index) => {
                 const geometry = new THREE.PlaneGeometry(0.1, 0.1);
-                const material = new THREE.MeshBasicMaterial({ color: 0x0000ff, side: THREE.DoubleSide });
+                const material = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide }); // Red color
                 const plane = new THREE.Mesh(geometry, material);
 
                 // Set initial position of sound propagation object at the sound source
@@ -209,7 +209,7 @@
                         // Create a sphere at the listener position with a delay based on timeToReach
                         setTimeout(() => {
                             const listenerGeometry = new THREE.SphereGeometry(0.05, 16, 16);
-                            const listenerMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+                            const listenerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Green color
                             const listenerSphere = new THREE.Mesh(listenerGeometry, listenerMaterial);
 
                             //// Apply rotation based on angle of reflection
