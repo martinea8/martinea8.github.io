@@ -29,6 +29,7 @@
 
         // Create walls for the room
         const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x800080 }); // Purple color for walls
+        const transparentMaterial = new THREE.MeshBasicMaterial({ color: transparentColor, transparent: true, opacity: 0 });
         const wallGeometry = new THREE.BoxGeometry(roomWidth, roomHeight, roomDepth); // Dimensions of the room (adjust as needed)
         const walls = [];
 
@@ -47,7 +48,7 @@
         backWall.position.set(0, 0, -roomDepth / 2);
         walls.push(backWall);
 
-        const frontWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        const frontWall = new THREE.Mesh(wallGeometry, transparentMaterial);
         frontWall.position.set(0, 0, roomDepth / 2);
         walls.push(frontWall);
 
@@ -222,6 +223,9 @@
                             listenerSphere.rotation.z = reflectionAngleRad;
 
                             listenerSphere.position.copy(listenerPosition);
+
+                            camera.rotation.copy(reflectionAngleRad);                           
+                            camera.position.copy(listenerPosition);
 
                             // Get the frequency data from the analyser
                             const frequencyData = new Uint8Array(analyser.frequencyBinCount);
