@@ -57,7 +57,7 @@
                     audioSource.start();
 
                     // Simulate sound waves propagation and reflections with input parameters
-                    simulateSoundWaves('arcade fire - ready to start.mp3', 20, 1, 0.5);
+                    simulateSoundWaves(20, 40, 0.5);
                 }
             } catch (err) {
                 console.error(`Unable to fetch the audio file. Error: ${err.message}`);
@@ -69,11 +69,11 @@
         let roomHeight = 43; // Height of the room in meters
         let roomDepth = 44; // Depth of the room in meters
         let soundSpeed = 343; // Speed of sound in air in m/s (at room temperature)
-        let distanceToWall = 45; // Distance from the sound source to the wall obstacle in meters
+        let distanceToWall = 40; // Distance from the sound source to the wall obstacle in meters
         let wallAbsorptionCoefficient = 0.5; // Coefficient of sound absorption of the walls (range: 0 to 1)
 
         // Simulate sound wave propagation and reflections
-        function simulateSoundWaves(soundURL, roomTemp, wallDistance, absorptionCoefficient) {
+        function simulateSoundWaves(roomTemp, wallDistance, absorptionCoefficient) {
             debugger;
             if (!analyser) return;
 
@@ -81,9 +81,6 @@
             soundSpeed = 331.4 + (0.6 * roomTemp);
             distanceToWall = wallDistance;
             wallAbsorptionCoefficient = absorptionCoefficient;
-
-            //// Load and play sound/music file
-            //loadSound(soundURL);
 
             for (let x = 0; x < roomWidth; x++) {
                 for (let y = 0; y < roomHeight; y++) {
@@ -160,14 +157,11 @@
 
         function callSimulation()
         {
+            // Update camera position
+            camera.position.z = 5;
+
             // Call the function with the path to your sound/music file
             loadSound('arcade fire - ready to start.mp3');
-
-            // Update camera position
-            camera.position.z = 0;
-
-            camera.position.x = 0;
-            camera.position.y = 0;
 
             animate();
         }
