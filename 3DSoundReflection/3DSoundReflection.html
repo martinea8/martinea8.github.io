@@ -45,22 +45,23 @@
         rightWall.rotation.y = Math.PI / 2;
         walls.push(rightWall);
 
-        const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        const backWall = new THREE.Mesh(wallGeometry, transparentColor);
         backWall.position.set(0, 0, -roomDepth / 2);
+        //transparentBackWall.rotation.y = Math.PI; // Rotate the wall to face inward
         walls.push(backWall);
 
-        const frontWall = new THREE.Mesh(wallGeometry, transparentMaterial);
+        const frontWall = new THREE.Mesh(wallGeometry, wallMaterial);
         frontWall.position.set(0, 0, roomDepth / 2);
         walls.push(frontWall);
 
-        const topWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        const topWall = new THREE.Mesh(wallGeometry, transparentMaterial);
         topWall.position.set(0, roomHeight / 2, 0);
-        topWall.rotation.x = Math.PI / 2;
+        topWall.rotation.x = Math.PI;
         walls.push(topWall);
 
         const bottomWall = new THREE.Mesh(wallGeometry, wallMaterial);
         bottomWall.position.set(0, -roomHeight / 2, 0);
-        bottomWall.rotation.x = Math.PI / 2;
+        bottomWall.rotation.x = Math.PI; // Rotate the wall to face downward
         walls.push(bottomWall);
 
         // Add walls to the scene
