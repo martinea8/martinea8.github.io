@@ -29,6 +29,7 @@
 
         // Create walls for the room
         const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x800080 }); // Purple color for walls
+        const transparentColor = 0x000000; // Black color (used for transparency)
         const transparentMaterial = new THREE.MeshBasicMaterial({ color: transparentColor, transparent: true, opacity: 0 });
         const wallGeometry = new THREE.BoxGeometry(roomWidth, roomHeight, roomDepth); // Dimensions of the room (adjust as needed)
         const walls = [];
@@ -83,9 +84,6 @@
         camera.near = 0.1; // Near clipping plane distance
         camera.far = 100; // Far clipping plane distance
         camera.updateProjectionMatrix(); // Update camera projection matrix
-
-        // Visualize sound propagation from the source to the walls
-        const propagationObjects = visualizeSoundPropagation(soundSource, walls);
 
         // Function to visualize sound propagation from the source to the walls
         function visualizeSoundPropagation(soundSource, walls) {
@@ -301,6 +299,9 @@
 
         function callSimulation()
         {
+            // Visualize sound propagation from the source to the walls
+            const propagationObjects = visualizeSoundPropagation(soundSource, walls);
+
             // Call the function with the path to your sound/music file
             loadSound('arcade fire - ready to start.mp3');
 
