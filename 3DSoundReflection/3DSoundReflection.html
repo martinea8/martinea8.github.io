@@ -84,7 +84,7 @@
         camera.fov = 75; // Field of view angle (adjust as needed)
         camera.aspect = window.innerWidth / window.innerHeight; // Aspect ratio
         camera.near = 0.1; // Near clipping plane distance
-        camera.far = 100; // Far clipping plane distance
+        camera.far = 1000; // Far clipping plane distance
         camera.updateProjectionMatrix(); // Update camera projection matrix
 
         // Function to visualize sound propagation from the source to the walls
@@ -204,8 +204,8 @@
                         const angleOfIncidence = Math.acos(direction.dot(new THREE.Vector3(0, 0, 1))) * (180 / Math.PI);
 
                         // Calculate angle of reflection (assuming perfect reflection off walls)
-                        //const angleOfReflection = angleOfIncidence;
-                        const angleOfReflection = calculateReflectionAngle(angleOfIncidence)
+                        const angleOfReflection = angleOfIncidence;
+                        //const angleOfReflection = calculateReflectionAngle(angleOfIncidence)
 
                         // Create a sphere at the listener position with a delay based on timeToReach
                         setTimeout(() => {
@@ -213,14 +213,14 @@
                             const listenerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Green color
                             const listenerSphere = new THREE.Mesh(listenerGeometry, listenerMaterial);
 
-                            //// Apply rotation based on angle of reflection
-                            //listenerSphere.rotateX((angleOfReflection - 90) * (Math.PI / 180));
+                            // Apply rotation based on angle of reflection
+                            listenerSphere.rotateX((angleOfReflection - 90) * (Math.PI / 180));
                             
-                            // Convert reflection angle to radians
-                            const reflectionAngleRad = THREE.MathUtils.degToRad(angleOfReflection);
+                            //// Convert reflection angle to radians
+                            //const reflectionAngleRad = THREE.MathUtils.degToRad(angleOfReflection);
 
-                            // Rotate the sound wave visualization around the Z-axis
-                            listenerSphere.rotation.z = reflectionAngleRad;
+                            //// Rotate the sound wave visualization around the Z-axis
+                            //listenerSphere.rotation.z = reflectionAngleRad;
 
                             listenerSphere.position.copy(listenerPosition);
 
@@ -273,22 +273,22 @@
             return reflectionAngle;
         }
 
-        // Function to calculate new position after reflection with audio modulation
-        function calculateReflectionPositionWithAudio(position, reflectionAngle, audioFactor) {
-            // Convert reflection angle to radians
-            const reflectionAngleRad = THREE.MathUtils.degToRad(reflectionAngle);
+        //// Function to calculate new position after reflection with audio modulation
+        //function calculateReflectionPositionWithAudio(position, reflectionAngle, audioFactor) {
+        //    // Convert reflection angle to radians
+        //    const reflectionAngleRad = THREE.MathUtils.degToRad(reflectionAngle);
             
-            // Calculate modulation factor based on audio data (e.g., frequency or amplitude)
-            const modulationFactor = audioFactor * 0.1; // Adjust the modulation intensity as needed
+        //    // Calculate modulation factor based on audio data (e.g., frequency or amplitude)
+        //    const modulationFactor = audioFactor * 0.1; // Adjust the modulation intensity as needed
             
-            // Calculate new position after reflection using trigonometry
-            // Apply modulation to the reflection position
-            const newX = position.x * Math.cos(reflectionAngleRad) - position.y * Math.sin(reflectionAngleRad) + modulationFactor;
-            const newY = position.x * Math.sin(reflectionAngleRad) + position.y * Math.cos(reflectionAngleRad) + modulationFactor;
+        //    // Calculate new position after reflection using trigonometry
+        //    // Apply modulation to the reflection position
+        //    const newX = position.x * Math.cos(reflectionAngleRad) - position.y * Math.sin(reflectionAngleRad) + modulationFactor;
+        //    const newY = position.x * Math.sin(reflectionAngleRad) + position.y * Math.cos(reflectionAngleRad) + modulationFactor;
 
-            // Return the modulated position
-            return new THREE.Vector3(newX, newY, position.z);
-        }
+        //    // Return the modulated position
+        //    return new THREE.Vector3(newX, newY, position.z);
+        //}
 
         // Render loop
         function animate() {
@@ -298,8 +298,8 @@
 
         function callSimulation()
         {
-            // Visualize sound propagation from the source to the walls
-            const propagationObjects = visualizeSoundPropagation(soundSource, walls);
+            //// Visualize sound propagation from the source to the walls
+            //const propagationObjects = visualizeSoundPropagation(soundSource, walls);
 
             // Call the function with the path to your sound/music file
             loadSound('arcade fire - ready to start.mp3');
