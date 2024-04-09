@@ -1,32 +1,189 @@
 ﻿<!DOCTYPE html>
-
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <title></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Wave Simulation</title>
+    <!-- Import Three.js library -->
+    <script src="three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/20.0.0/tween.umd.js"></script>
 </head>
-<body onclick="loadAudio();">Test
+<body>
     <script>
-        async function loadAudio() {
-            debugger;
-            try {
-                // Initialize Web Audio API context
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Set up the scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-                // Load an audio file
-                const response = await fetch('arcade fire - ready to start.mp3', {
-                    method: "GET",
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-                // Decode it
-                buffer = await audioCtx.decodeAudioData(await response.arrayBuffer());
-            } catch (err) {
-                console.error(`Unable to fetch the audio file. Error: ${err.message}`);
+        // Set up room dimensions
+        const roomSize = 10;
+        const roomHalfSize = roomSize / 2;
+
+        // Create room walls
+        const wallGeometry = new THREE.BoxGeometry(roomSize, roomSize, roomSize);
+        const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x800080 });
+        const frontWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        frontWall.position.set(0, 0, roomHalfSize);
+        scene.add(frontWall);
+
+        const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        backWall.position.set(0, 0, -roomHalfSize);
+        scene.add(backWall);
+
+        const leftWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        leftWall.position.set(-roomHalfSize, 0, 0);
+        leftWall.rotation.y = Math.PI / 2;
+        scene.add(leftWall);
+
+        const rightWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        rightWall.position.set(roomHalfSize, 0, 0);
+        rightWall.rotation.y = Math.PI / 2;
+        scene.add(rightWall);
+
+        const topWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        topWall.position.set(0, roomHalfSize, 0);
+        topWall.rotation.x = Math.PI / 2;
+        scene.add(topWall);
+
+        const bottomWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        bottomWall.position.set(0, -roomHalfSize, 0);
+        bottomWall.rotation.x = Math.PI / 2;
+        scene.add(bottomWall);
+
+        // Set up listener position
+        const listener = new THREE.Mesh(
+            new THREE.SphereGeometry(0.1, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+        );
+        listener.position.set(0, 0, -roomHalfSize + 1); // Place listener near the back wall
+        scene.add(listener);
+
+        // Set up audio source position
+        const audioSource = new THREE.Mesh(
+            new THREE.SphereGeometry(0.1, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0xff0000 })
+        );
+        audioSource.position.set(0, 0, roomHalfSize - 1); // Place audio source near the front wall
+        scene.add(audioSource);
+
+        // Set up sound wave visualization
+        const soundWaveGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+        const soundWaveMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+        const soundWaves = [];
+
+        // Set up audio context and source
+        const audioContext = new AudioContext();
+        const audioElement = document.createElement('audio');
+        audioElement.src = 'arcade fire - ready to start.mp3'; // Replace 'path_to_your_audio_file.mp3' with the path to your audio file
+        audioElement.crossOrigin = 'anonymous';
+        const audioSourceNode = audioContext.createMediaElementSource(audioElement);
+
+        // Connect audio source node to audio context destination
+        audioSourceNode.connect(audioContext.destination);
+
+        // Play audio
+        audioElement.play();
+
+        // Function to simulate sound propagation and reflection
+        function simulateSoundPropagation() {
+            // Calculate distance and direction from audio source to listener
+            const audioSourcePos = audioSource.position;
+            const listenerPos = listener.position;
+            const direction = listenerPos.clone().sub(audioSourcePos).normalize();
+            const distance = listenerPos.distanceTo(audioSourcePos);
+
+            // Propagate sound waves from audio source to listener
+            const soundWave = new THREE.Mesh(soundWaveGeometry, soundWaveMaterial);
+            soundWave.position.copy(audioSourcePos);
+            soundWaves.push(soundWave);
+            scene.add(soundWave);
+
+            // Reflect sound waves off room walls
+            const raycaster = new THREE.Raycaster(audioSourcePos, direction);
+            const intersects = raycaster.intersectObjects([frontWall, backWall, leftWall, rightWall, topWall, bottomWall]);
+            if (intersects.length > 0) {
+                const reflectionPoint = intersects[0].point;
+                const reflectionDirection = reflectionPoint.clone().sub(listenerPos).normalize();
+                const reflectionDistance = reflectionPoint.distanceTo(listenerPos);
+                const reflectionWave = new THREE.Mesh(soundWaveGeometry, soundWaveMaterial);
+                reflectionWave.position.copy(reflectionPoint);
+                soundWaves.push(reflectionWave);
+                scene.add(reflectionWave);
+
+                // Propagate reflected sound waves to listener
+                const reflectionTween = new TWEEN.Tween(reflectionWave.position)
+                    .to(listenerPos, reflectionDistance * 10)
+                    .onComplete(() => {
+                        scene.remove(reflectionWave);
+                    })
+                    .start();
+            }
+
+            // Propagate original sound waves to listener
+            const soundWaveTween = new TWEEN.Tween(soundWave.position)
+                .to(listenerPos, distance * 10)
+                .onComplete(() => {
+                    scene.remove(soundWave);
+                })
+                .start();
+        }
+
+        // Function to visualize sound wave propagation to the walls
+        function visualizePropagationToWalls() {
+            // Create visualization lines
+            const visualizationLines = [];
+
+            // Calculate distance and direction from audio source to each wall
+            const audioSourcePos = audioSource.position;
+            const wallPositions = [frontWall.position, backWall.position, leftWall.position, rightWall.position, topWall.position, bottomWall.position];
+            for (const wallPos of wallPositions) {
+                const direction = wallPos.clone().sub(audioSourcePos).normalize();
+                const distance = wallPos.distanceTo(audioSourcePos);
+
+            // Create visualization line
+                const lineGeometry = new THREE.BufferGeometry();
+                lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+                 audioSourcePos.x, audioSourcePos.y, audioSourcePos.z,
+                 wallPos.x, wallPos.y, wallPos.z
+                ]), 3));
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffff00 }); // Yellow color
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(line);
+                visualizationLines.push(line);
+
+            // Animate the visualization line
+                const lineTween = new TWEEN.Tween(line.material)
+                    .to({ opacity: 0 }, distance * 10)
+                    .onComplete(() => {
+                        scene.remove(line);
+                    })
+                    .start();
             }
         }
+
+        // Set up animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Update TWEEN animations
+            TWEEN.update();
+
+            // Simulate sound propagation
+            simulateSoundPropagation();
+
+            // Visualize sound propagation to walls
+            visualizePropagationToWalls();
+
+            // Render the scene
+            renderer.render(scene, camera);
+        }
+
+        // Start animation loop
+        animate();
+
+
     </script>
 </body>
 </html>
