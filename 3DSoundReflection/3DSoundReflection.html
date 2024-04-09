@@ -96,7 +96,8 @@
                         const angleOfIncidence = Math.acos(direction.dot(new THREE.Vector3(0, 0, 1))) * (180 / Math.PI);
 
                         // Calculate angle of reflection (assuming perfect reflection off walls)
-                        const angleOfReflection = angleOfIncidence;
+                        //const angleOfReflection = angleOfIncidence;
+                        const angleOfReflection = calculateReflectionAngle(angleOfIncidence)
 
                         // Create a sphere at the listener position with a delay based on timeToReach
                         setTimeout(() => {
@@ -104,10 +105,16 @@
                             const listenerMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
                             const listenerSphere = new THREE.Mesh(listenerGeometry, listenerMaterial);
 
-                            // Apply rotation based on angle of reflection
-                            listenerSphere.rotateX((angleOfReflection - 90) * (Math.PI / 180));
+                            //// Apply rotation based on angle of reflection
+                            //listenerSphere.rotateX((angleOfReflection - 90) * (Math.PI / 180));
+                            
+                            // Convert reflection angle to radians
+                            const reflectionAngleRad = THREE.MathUtils.degToRad(angleOfReflection);
 
-                            listenerSphere.position.copy(listenerPosition);
+                            // Rotate the sound wave visualization around the Z-axis
+                            listenerSphere.rotation.z = reflectionAngleRad;
+
+                            //listenerSphere.position.copy(listenerPosition);
 
                             // Get the frequency data from the analyser
                             const frequencyData = new Uint8Array(analyser.frequencyBinCount);
@@ -127,7 +134,8 @@
                             listenerSphere.material.color.copy(newColor);
 
                             // Update position of the sound waves (optional)
-                            const newPosition = new THREE.Vector3(x, y, -2 - averageFrequency * 0.1); // Adjust position based on average frequency
+                            //const newPosition = new THREE.Vector3(x, y, -2 - averageFrequency * 0.1); // Adjust position based on average frequency
+                            const newPosition = calculateReflectionPositionWithAudio(listenerPosition, angleOfReflection, averageFrequency);
                             listenerSphere.position.copy(newPosition);
 
                             scene.add(listenerSphere);
@@ -147,6 +155,32 @@
                 sum += frequencyData[i];
             }
             return sum / frequencyData.length;
+        }
+
+        // Function to calculate reflection angle based on incident angle
+        function calculateReflectionAngle(incidentAngle) {
+            // Calculate reflection angle using the law of reflection
+            // Angle of reflection = 2 * (Angle of incidence - 90 degrees)
+            const reflectionAngle = 2 * (incidentAngle - 90); // Adjust as needed based on coordinate system
+
+            return reflectionAngle;
+        }
+
+        // Function to calculate new position after reflection with audio modulation
+        function calculateReflectionPositionWithAudio(position, reflectionAngle, audioFactor) {
+            // Convert reflection angle to radians
+            const reflectionAngleRad = THREE.MathUtils.degToRad(reflectionAngle);
+            
+            // Calculate modulation factor based on audio data (e.g., frequency or amplitude)
+            const modulationFactor = audioFactor * 0.1; // Adjust the modulation intensity as needed
+            
+            // Calculate new position after reflection using trigonometry
+            // Apply modulation to the reflection position
+            const newX = position.x * Math.cos(reflectionAngleRad) - position.y * Math.sin(reflectionAngleRad) + modulationFactor;
+            const newY = position.x * Math.sin(reflectionAngleRad) + position.y * Math.cos(reflectionAngleRad) + modulationFactor;
+
+            // Return the modulated position
+            return new THREE.Vector3(newX, newY, position.z);
         }
 
         // Render loop
