@@ -382,8 +382,9 @@
                 boomBox.position.set(-9.6,-9.6, -9.6); // Position at the corner of the room
                 
                 var boomBoxScale = 20;
+                var boomBoxRotationX = -45; 
                 boomBox.scale.set( boomBoxScale, boomBoxScale, boomBoxScale );
-
+                boomBox.rotateX(boomBoxRotationX);
                 boomBox.traverse( function ( object ) {
 
                     if ( object.isMesh ) {
