@@ -364,7 +364,7 @@
             const positionalAudio = new THREE.PositionalAudio( listener );
             positionalAudio.setMediaElementSource( audioElement );
 
-            var distanceValue = 1;
+            var distanceValue = 20;
             positionalAudio.setRefDistance( distanceValue );
             var coneInnerAngle = 180;
             var coneOuterAngle = 230;
@@ -379,12 +379,14 @@
             gltfLoader.load( 'BoomBox.glb', function ( gltf ) {
 
                 const boomBox = gltf.scene;
-                boomBox.position.set(-9.6,-9.6, -9.6); // Position at the corner of the room
+                boomBoxPositionX = -5;
+                boomBoxPositionY = -9.6;
+                boomBoxPositionZ = -9.6;
+
+                boomBox.position.set(boomBoxPositionX,boomBoxPositionY, boomBoxPositionZ); // Position at the corner of the room
                 
-                var boomBoxScale = 20;
-                var boomBoxRotationY = -45; 
+                var boomBoxScale = 32;
                 boomBox.scale.set( boomBoxScale, boomBoxScale, boomBoxScale );
-                boomBox.rotateY(boomBoxRotationX);
                 boomBox.traverse( function ( object ) {
 
                     if ( object.isMesh ) {
