@@ -379,9 +379,9 @@
             gltfLoader.load( 'BoomBox.glb', function ( gltf ) {
 
                 const boomBox = gltf.scene;
-                boomBoxPositionX = -5;
-                boomBoxPositionY = -9.6;
-                boomBoxPositionZ = -9.6;
+                var boomBoxPositionX = -5;
+                var boomBoxPositionY = -9.6;
+                var boomBoxPositionZ = -9.6;
 
                 boomBox.position.set(boomBoxPositionX,boomBoxPositionY, boomBoxPositionZ); // Position at the corner of the room
                 
