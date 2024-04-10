@@ -100,13 +100,13 @@
         var v = new THREE.Vector3( ),
         u = new THREE.Vector3( );
 
-        // Create a sound source object (e.g., a sphere)
-        const sourceGeometry = new THREE.SphereGeometry(0.4, 32, 32);
-        const sourceMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue color
-        const soundSource = new THREE.Mesh(sourceGeometry, sourceMaterial);
-        soundSource.position.set(-9.6,-9.6, -9.6); // Position at the corner of the room
+        //// Create a sound source object (e.g., a sphere)
+        //const sourceGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+        //const sourceMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue color
+        //const soundSource = new THREE.Mesh(sourceGeometry, sourceMaterial);
+        //soundSource.position.set(-9.6,-9.6, -9.6); // Position at the corner of the room
 
-        scene.add(soundSource);
+        //scene.add(soundSource);
 
         function onWindowResize() {
 
@@ -363,10 +363,16 @@
 
             const positionalAudio = new THREE.PositionalAudio( listener );
             positionalAudio.setMediaElementSource( audioElement );
-            positionalAudio.setRefDistance( 1 );
-            positionalAudio.setDirectionalCone( 180, 230, 0.1 );
 
-            const helper = new PositionalAudioHelper( positionalAudio, 0.1 );
+            var distanceValue = 1;
+            positionalAudio.setRefDistance( distanceValue );
+            var coneInnerAngle = 180;
+            var coneOuterAngle = 230;
+            var coneOuterGain = 0.1;
+            positionalAudio.setDirectionalCone( coneInnerAngle, coneOuterAngle, coneOuterGain );
+            
+            var range = 0.1;
+            const helper = new PositionalAudioHelper( positionalAudio, range );
             positionalAudio.add( helper );
 
             const gltfLoader = new GLTFLoader();
@@ -374,7 +380,9 @@
 
                 const boomBox = gltf.scene;
                 boomBox.position.set(-9.6,-9.6, -9.6); // Position at the corner of the room
-                boomBox.scale.set( 32, 32, 32 );
+                
+                var boomBoxScale = 20;
+                boomBox.scale.set( boomBoxScale, boomBoxScale, boomBoxScale );
 
                 boomBox.traverse( function ( object ) {
 
