@@ -365,7 +365,7 @@
             positionalAudio.setMediaElementSource( audioElement );
 
             var distanceValue = 20;
-            positionalAudio.setRefDistance( distanceValue );
+            positionalAudio.setRefDistance( distanceValue ); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect. 
             var coneInnerAngle = 180;
             var coneOuterAngle = 230;
             var coneOuterGain = 0.1;
@@ -379,7 +379,7 @@
             gltfLoader.load( 'BoomBox.glb', function ( gltf ) {
 
                 const boomBox = gltf.scene;
-                var boomBoxPositionX = -5;
+                var boomBoxPositionX = 0;
                 var boomBoxPositionY = -9.6;
                 var boomBoxPositionZ = -9.6;
 
