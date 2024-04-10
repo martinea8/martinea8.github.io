@@ -373,14 +373,14 @@
             gltfLoader.load( 'BoomBox.glb', function ( gltf ) {
 
                 const boomBox = gltf.scene;
-                boomBox.position.set( 0, 0.2, 0 );
-                boomBox.scale.set( 20, 20, 20 );
+                boomBox.position.set(-9.6,-9.6, -9.6); // Position at the corner of the room
+                boomBox.scale.set( 32, 32, 32 );
 
                 boomBox.traverse( function ( object ) {
 
                     if ( object.isMesh ) {
 
-                        object.material.envMap = reflectionCube;
+                        object.material.envMap = scene;
                         object.geometry.rotateY( - Math.PI );
                         object.castShadow = true;
 
