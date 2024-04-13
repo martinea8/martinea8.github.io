@@ -7,17 +7,19 @@
     <!-- Import Three.js library -->
     <script type="importmap">
         {
-        "imports": {
-            "three": "https://unpkg.com/three@0.141.0/build/three.module.js"
-            }
+			"imports": {
+				"three": "https://unpkg.com/three@0.141.0/build/three.module.js"
+			}
         }
     </script>
 </head>
 <body>
-    <audio loop id="music" preload="auto" style="display: none">
-        <source src="arcade fire - ready to start.mp3" type="audio/mpeg">
-    </audio>
-
+	<div>
+		<label>Audio URL: <input id="txtAudioURL" type="text" value="https://martineaoun.com/3DSoundReflection/tears for fears - mad world.mp3" style="width: 500px;"></label>
+		<audio id="music" preload="auto" style="display: none" crossOrigin="anonymous">
+			<source id="sourceAudio" type="audio/mpeg">
+		</audio>
+	</div>
     <div id="overlay">
         <button id="startButton">Play</button>
     </div>
@@ -26,17 +28,60 @@
         import { OrbitControls } from 'https://unpkg.com/three@0.141.0/examples/jsm/controls/OrbitControls.js';
         import { PositionalAudioHelper } from 'https://unpkg.com/three@0.141.0/examples/jsm/helpers/PositionalAudioHelper.js';
         import { GLTFLoader } from 'https://unpkg.com/three@0.141.0/examples/jsm/loaders/GLTFLoader.js';
+		import {math} from './math.js';
+		import {noise} from './noise.js';
 
-        // Simulation parameters
-        let roomWidth = 20; // Width of the room in meters
-        let roomHeight = 20; // Height of the room in meters
-        let roomDepth = 20; // Depth of the room in meters
-        let soundSpeed = 343; // Speed of sound in air in m/s (at room temperature)
-        let distanceToWall = 18; // Distance from the sound source to the wall obstacle in meters
-        let wallAbsorptionCoefficient = 0.5; // Coefficient of sound absorption of the walls (range: 0 to 1)
+        class LinearSpline {
+        constructor(lerp) {
+        this.points_ = [];
+        this._lerp = lerp;
+        }
+
+        AddPoint(t, d) {
+        this.points_.push([t, d]);
+        }
+
+        Get(t) {
+        let p1 = 0;
+
+        for (let i = 0; i < this.points_.length; i++) {
+        if (this.points_[i][0] >= t) {
+        break;
+        }
+        p1 = i;
+        }
+
+        const p2 = Math.min(this.points_.length - 1, p1 + 1);
+
+        if (p1 == p2) {
+        return this.points_[p1][1];
+        }
+
+        return this._lerp(
+        (t - this.points_[p1][0]) / (
+        this.points_[p2][0] - this.points_[p1][0]),
+        this.points_[p1][1], this.points_[p2][1]);
+        }
+        }
 
         let analyser;
+		let analyserData;
         let mesh;
+		let previousRAF;
+		let indexTimer = 0;
+		let noise1 = new noise.Noise({
+		  octaves: 3,
+		  persistence: 0.5,
+		  lacunarity: 1.6,
+		  exponentiation: 1.0,
+		  height: 1.0,
+		  scale: 0.1,
+		  seed: 1
+		});
+		
+		var boomBoxPositionX = 0;
+		var boomBoxPositionY = -9;
+		var boomBoxPositionZ = 0;
 
         // Initialize Three.js scene, camera, and renderer
         let scene = new THREE.Scene();
@@ -45,7 +90,7 @@
         let camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight);
         camera.position.set( 0, 0, 60 );
         camera.lookAt( scene.position );
-
+		
         var renderer = new THREE.WebGLRenderer( { antialias: true } );
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setAnimationLoop( animationLoop );
@@ -54,18 +99,22 @@
 
         window.addEventListener( 'resize', onWindowResize );
 
-        // Create walls for the room
-        const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x800080 }); // Purple color for walls
-        const transparentColor = 0x000000; // Black color (used for transparency)
-        const transparentMaterial = new THREE.MeshBasicMaterial({ color: transparentColor, transparent: true, opacity: 0 });
-        const wallGeometry = new THREE.BoxGeometry(roomWidth, roomHeight, roomDepth); // Dimensions of the room (adjust as needed)
-
         var controls = new OrbitControls( camera, renderer.domElement );
         controls.enableDamping = true;
 
         var light = new THREE.DirectionalLight( 'white', 3 );
         light.position.set( 1, 1, 1 );
         scene.add( light );
+		
+		// Create a grid helper with size 20 and divisions 20
+		let gridHelper = new THREE.GridHelper(20, 20, 0xc1c1c1, 0xc1c1c1 );
+		var gridHelperPositionX = 0;
+		var gridHelperPositionY = -10;
+		var gridHelperPositionZ = 0;
+
+		gridHelper.position.set(gridHelperPositionX,gridHelperPositionY, gridHelperPositionZ); 
+		// Add the grid helper to the scene
+		scene.add(gridHelper);
 
         var geometry = new THREE.BoxGeometry(20, 20, 0.4),
         material = new THREE.MeshLambertMaterial( {color:'royalblue', transparent: true} );
@@ -97,16 +146,46 @@
 
         scene.add( ...walls );
 
-        var v = new THREE.Vector3( ),
-        u = new THREE.Vector3( );
+        var v = new THREE.Vector3(),
+         u = new THREE.Vector3();
+		
+		const transparentColor = 0x000000; // Black color (used for transparency)	
+		const transparentMaterial = new THREE.MeshBasicMaterial({ color: transparentColor, transparent: true, opacity: 0 });
+		const speaker1Material = transparentMaterial;
+		const speaker1 = new THREE.Mesh(
+		  new THREE.BoxGeometry(1, 8, 4),
+		  speaker1Material);
+		speaker1.position.set(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ);
+		speaker1.castShadow = true;
+		speaker1.receiveShadow = true;
+		scene.add(speaker1);
 
-        //// Create a sound source object (e.g., a sphere)
-        //const sourceGeometry = new THREE.SphereGeometry(0.4, 32, 32);
-        //const sourceMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue color
-        //const soundSource = new THREE.Mesh(sourceGeometry, sourceMaterial);
-        //soundSource.position.set(-9.6,-9.6, -9.6); // Position at the corner of the room
+		const speaker1Geo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+		const speaker1BoxMaterial = transparentMaterial;
+		const speakerMeshes1 = [];
+		const speaker1Group = new THREE.Group();
+		speaker1Group.position.x = boomBoxPositionX;
+		speaker1Group.position.y = 5;
+		speaker1Group.position.z = boomBoxPositionZ;
+		speaker1Group.rotation.y = -Math.PI / 2;
 
-        //scene.add(soundSource);
+		for (let x = -5; x <= 4; ++x) {
+		  const row = [];
+		  for (let y = 0; y < 16; ++y) {
+			const speaker1_1 = new THREE.Mesh(
+			  speaker1Geo,
+			  new THREE.MeshBasicMaterial({ color: transparentColor, transparent: true, opacity: 1 }));
+			speaker1_1.position.set(0, y*0.35 - 3, x * 0.35);
+			speaker1_1.castShadow = true;
+			speaker1_1.receiveShadow = true;
+			speaker1Group.add(speaker1_1);
+			row.push(speaker1_1);
+		  }
+		  speakerMeshes1.push(row);
+		}
+		speaker1.add(speaker1Group);
+
+		const speakerMesh1_ = speaker1;
 
         function onWindowResize() {
 
@@ -116,209 +195,6 @@
             renderer.setSize( window.innerWidth, window.innerHeight );
 
         }
-
-        // Function to visualize sound propagation from the source to the walls
-        function visualizeSoundPropagation(soundSource, walls) {
-
-            // Calculate distance from sound source to each wall
-            const distancesToWalls = walls.map(wall => soundSource.position.distanceTo(wall.position));
-
-            // Calculate time for sound wave to reach each wall
-            const timesToWalls = distancesToWalls.map(distance => distanceToWall / soundSpeed);
-
-            // Create visualization objects for sound propagation to each wall
-            const propagationObjects = [];
-            timesToWalls.forEach((time, index) => {
-                const geometry = new THREE.PlaneGeometry(0.1, 0.1);
-                const material = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide }); // Red color
-                const plane = new THREE.Mesh(geometry, material);
-
-                // Set initial position of sound propagation object at the sound source
-                plane.position.copy(soundSource.position);
-
-                // Animate the movement of sound propagation object towards the wall
-                const destination = walls[index].position;
-                const movementVector = new THREE.Vector3().subVectors(destination, soundSource.position);
-                movementVector.normalize(); // Normalize the movement vector
-                movementVector.multiplyScalar(soundSpeed * time); // Scale by speed and time to get displacement
-                animateSoundPropagation(plane, movementVector, time); // Start animation
-
-                // Add the sound propagation object to the scene
-                scene.add(plane);
-                propagationObjects.push(plane);
-            });
-
-            return propagationObjects;
-        }
-
-        // Function to animate the movement of sound propagation object
-        function animateSoundPropagation(object, movementVector, duration) {
-            const startPosition = object.position.clone();
-            const startTime = Date.now();
-
-            function update() {
-                const elapsedTime = (Date.now() - startTime) / 1000; // Convert milliseconds to seconds
-                if (elapsedTime < duration) {
-                    const progress = elapsedTime / duration;
-                    object.position.copy(startPosition.clone().add(movementVector.clone().multiplyScalar(progress)));
-                    requestAnimationFrame(update);
-                } else {
-                    // Animation complete
-                    object.position.copy(startPosition.clone().add(movementVector)); // Ensure final position is reached
-                }
-            }
-
-            // Start animation loop
-            update();
-        }
-
-        // Load and play the sound/music file
-        async function loadSound(soundURL) {
-            debugger;
-            try {
-                if (analyser == null)
-                {
-                    // Initialize Web Audio API context
-                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-                    const response = await fetch(soundURL, {
-                        method: "GET",
-                        mode: 'cors',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                    // Decode it
-                    arrayBuffer = await audioContext.decodeAudioData(await response.arrayBuffer());
-                    audioSource = audioContext.createBufferSource();
-                    audioSource.buffer = arrayBuffer;
-                    //audioSource.connect(audioContext.destination);
-
-                    // Create AnalyserNode to analyze the audio data
-                    analyser = audioContext.createAnalyser();
-                    audioSource.connect(analyser);
-                    analyser.connect(audioContext.destination);
-
-                    // Start playing the audio
-                    audioSource.start();
-
-                    // Simulate sound waves propagation and reflections with input parameters
-                    simulateSoundWaves(20, 18, 0.5);
-                }
-            } catch (err) {
-                console.error(`Unable to fetch the audio file. Error: ${err.message}`);
-            }
-        }
-
-        // Simulate sound wave propagation and reflections
-        function simulateSoundWaves(roomTemp, wallDistance, absorptionCoefficient) {
-            debugger;
-            if (!analyser) return;
-
-            // Set simulation parameters based on input
-            soundSpeed = 331.4 + (0.6 * roomTemp);
-            distanceToWall = wallDistance;
-            wallAbsorptionCoefficient = absorptionCoefficient;
-
-            for (let x = 0; x < roomWidth; x++) {
-                for (let y = 0; y < roomHeight; y++) {
-                    for (let z = 0; z < roomDepth; z++) {
-                        const listenerPosition = new THREE.Vector3(x, y, z);
-                        const distance = soundSource.position.distanceTo(listenerPosition);
-                        const timeToReach = distance / soundSpeed;
-
-                        // Calculate direction vector from sound source to listener
-                        const direction = listenerPosition.clone().sub(soundSource.position).normalize();
-
-                        // Calculate angle of incidence
-                        const angleOfIncidence = Math.acos(direction.dot(new THREE.Vector3(0, 0, 1))) * (180 / Math.PI);
-
-                        // Calculate angle of reflection (assuming perfect reflection off walls)
-                        const angleOfReflection = angleOfIncidence;
-                        //const angleOfReflection = calculateReflectionAngle(angleOfIncidence)
-
-                        // Create a sphere at the listener position with a delay based on timeToReach
-                        setTimeout(() => {
-                            const listenerGeometry = new THREE.SphereGeometry(0.05, 16, 16);
-                            const listenerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Green color
-                            const listenerSphere = new THREE.Mesh(listenerGeometry, listenerMaterial);
-
-                            // Apply rotation based on angle of reflection
-                            listenerSphere.rotateX((angleOfReflection - 90) * (Math.PI / 180));
-
-                            //// Convert reflection angle to radians
-                            //const reflectionAngleRad = THREE.MathUtils.degToRad(angleOfReflection);
-
-                            //// Rotate the sound wave visualization around the Z-axis
-                            //listenerSphere.rotation.z = reflectionAngleRad;
-
-                            listenerSphere.position.copy(listenerPosition);
-
-                            // Get the frequency data from the analyser
-                            const frequencyData = new Uint8Array(analyser.frequencyBinCount);
-                            analyser.getByteFrequencyData(frequencyData);
-
-                            // Update the visualization based on the frequency data
-                            const averageFrequency = getAverageFrequency(frequencyData);
-
-                            //// Calculate scaling factor based on average frequency (adjust as needed)
-                            //const scaleFactor = averageFrequency / 255; // Normalize to range [0, 1]
-                            //// Update size of the sound waves
-                            //listenerSphere.scale.set(scaleFactor, scaleFactor, scaleFactor);
-
-                            // Update color of the sound waves (optional)
-                            const newColor = new THREE.Color().setHSL(averageFrequency / 255, 1, 0.5); // Adjust color based on average frequency
-                            listenerSphere.material.color.copy(newColor);
-
-                            // Update position of the sound waves (optional)
-                            //const newPosition = new THREE.Vector3(x, y, -2 - averageFrequency * 0.1); // Adjust position based on average frequency
-                            //const newPosition = calculateReflectionPositionWithAudio(listenerPosition, angleOfReflection, averageFrequency);
-                            //listenerSphere.position.copy(newPosition);
-
-                            scene.add(listenerSphere);
-                        }, timeToReach * 1000); // Convert time to milliseconds
-                    }
-                }
-            }
-
-            // Call simulateSoundWaves recursively to update the simulation continuously
-            requestAnimationFrame(simulateSoundWaves);
-        }
-
-        // Function to calculate the average frequency from frequency data
-        function getAverageFrequency(frequencyData) {
-            let sum = 0;
-            for (let i = 0; i < frequencyData.length; i++) {
-                sum += frequencyData[i];
-            }
-            return sum / frequencyData.length;
-        }
-
-        // Function to calculate reflection angle based on incident angle
-        function calculateReflectionAngle(incidentAngle) {
-            // Calculate reflection angle using the law of reflection
-            // Angle of reflection = 2 * (Angle of incidence - 90 degrees)
-            const reflectionAngle = 2 * (incidentAngle - 90); // Adjust as needed based on coordinate system
-
-            return reflectionAngle;
-        }
-
-        //// Function to calculate new position after reflection with audio modulation
-        //function calculateReflectionPositionWithAudio(position, reflectionAngle, audioFactor) {
-        //    // Convert reflection angle to radians
-        //    const reflectionAngleRad = THREE.MathUtils.degToRad(reflectionAngle);
-
-        //    // Calculate modulation factor based on audio data (e.g., frequency or amplitude)
-        //    const modulationFactor = audioFactor * 0.1; // Adjust the modulation intensity as needed
-
-        //    // Calculate new position after reflection using trigonometry
-        //    // Apply modulation to the reflection position
-        //    const newX = position.x * Math.cos(reflectionAngleRad) - position.y * Math.sin(reflectionAngleRad) + modulationFactor;
-        //    const newY = position.x * Math.sin(reflectionAngleRad) + position.y * Math.cos(reflectionAngleRad) + modulationFactor;
-
-        //    // Return the modulated position
-        //    return new THREE.Vector3(newX, newY, position.z);
-        //}
 
         function animationLoop( t )
         {
@@ -338,54 +214,61 @@
         renderer.render( scene, camera );
         }
 
-        // Render loop
-        function animate() {
-            requestAnimationFrame(animate);
-
-            renderer.render(scene, camera);
-        }
-
-        //animate();
-
         const startButton = document.getElementById( 'startButton' );
         startButton.addEventListener( 'click', init );
 
         function init() {
-
+	
             const overlay = document.getElementById( 'overlay' );
             overlay.remove();
 
             const listener = new THREE.AudioListener();
             camera.add( listener );
 
-            const audioElement = document.getElementById( 'music' );
-            audioElement.play();
+			debugger;
+            //const audioElement = document.getElementById('music');
+			const sourceAudio = document.getElementById( 'sourceAudio' );
+			const audioURL = document.getElementById( 'txtAudioURL' );
+			sourceAudio.src = audioURL.value;
+			//audioElement.load();
+            //audioElement.play();
 
-            const positionalAudio = new THREE.PositionalAudio( listener );
-            positionalAudio.setMediaElementSource( audioElement );
+            const positionalAudio = new THREE.PositionalAudio(listener);
+            //positionalAudio.setMediaElementSource( audioElement );
+
 
             var distanceValue = 20;
-            positionalAudio.setRefDistance( distanceValue ); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect. 
             var coneInnerAngle = 180;
-            var coneOuterAngle = 230;
+            var coneOuterAngle = 360;
             var coneOuterGain = 0.1;
-            positionalAudio.setDirectionalCone( coneInnerAngle, coneOuterAngle, coneOuterGain );
-            
-            var range = 0.1;
+			var range = 0.1;
             const helper = new PositionalAudioHelper( positionalAudio, range );
-            positionalAudio.add( helper );
+			
+			const loader = new THREE.AudioLoader();
+			loader.load(audioURL.value, (buffer) => {
+			  setTimeout(() => {
+				positionalAudio.setBuffer(buffer);
+				//positionalAudio.setLoop(false);
+				positionalAudio.setVolume(1.0);
+				positionalAudio.setRefDistance( distanceValue ); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect. 
+				positionalAudio.setDirectionalCone(coneInnerAngle,coneOuterAngle,coneOuterGain);
+				positionalAudio.add(helper);
+				positionalAudio.play();
+				analyser = new THREE.AudioAnalyser(positionalAudio, 32);
+				analyserData = [];
+			  }, 1000);
+			});
+			//positionalAudio.source.onEnded = () => console.log("track ended");
+            
 
             const gltfLoader = new GLTFLoader();
-            gltfLoader.load( 'BoomBox.glb', function ( gltf ) {
+            gltfLoader.load( 'https://martineaoun.com/3DSoundReflection/BoomBox.glb', function ( gltf ) {
 
                 const boomBox = gltf.scene;
-                var boomBoxPositionX = 0;
-                var boomBoxPositionY = -9.6;
-                var boomBoxPositionZ = -9.6;
 
-                boomBox.position.set(boomBoxPositionX,boomBoxPositionY, boomBoxPositionZ); // Position at the corner of the room
+                boomBox.position.set(boomBoxPositionX,boomBoxPositionY, boomBoxPositionZ); // Position at the center of the room
                 
-                var boomBoxScale = 32;
+                var boomBoxScale = 100;
                 boomBox.scale.set( boomBoxScale, boomBoxScale, boomBoxScale );
                 boomBox.traverse( function ( object ) {
 
@@ -401,22 +284,64 @@
 
                 boomBox.add( positionalAudio );
                 scene.add( boomBox );
-                animate();
+				previousRAF = null;
+				raf_();
 
             } );
         }
+        // Render loop
+        function raf_() {
+		    requestAnimationFrame((t) => {
+			  if (previousRAF === null) {
+				previousRAF = t;
+			  }
 
-        function callSimulation()
-        {
-            //// Visualize sound propagation from the source to the walls
-            //const propagationObjects = visualizeSoundPropagation(soundSource, walls);
+			  step_(t - previousRAF);
+			  renderer.render(scene, camera);
 
-            // Call the function with the path to your sound/music file
-            //loadSound('arcade fire - ready to start.mp3');
-
-            animate();
+			  previousRAF = t;
+			  raf_();
+			});
+            //requestAnimationFrame(animate);
+            //renderer.render(scene, camera);
         }
 
+
+  function step_(timeElapsed) {
+    const timeElapsedS = timeElapsed * 0.001;
+
+    if (analyser) {
+      indexTimer += timeElapsedS * 0.1;
+
+      analyserData.push([...analyser.getFrequencyData()]);
+      const rows = 10;
+      if (analyserData.length > rows) {
+        analyserData.shift();
+      }
+
+      const colourSpline = new LinearSpline((t, a, b) => {
+        const c = a.clone();
+        return c.lerp(b, t);
+      });
+      colourSpline.AddPoint(0.0, new THREE.Color(0x4040FF));
+      colourSpline.AddPoint(0.25, new THREE.Color(0xFF4040));
+      colourSpline.AddPoint(1.0, new THREE.Color(0xFFFF80));
+
+      const remap = [15, 13, 11, 9, 7, 5, 3, 1, 0, 2, 4, 6, 8, 10, 12, 14];
+      for (let r = 0; r < analyserData.length; ++r) {
+        const data = analyserData[r];
+        const speakerRow = speakerMeshes1[r];
+        for (let i = 0; i < data.length; ++i) {
+          const freqScale = math.smootherstep((data[remap[i]]/255) ** 0.5, 0, 1);
+          const sc = 1 + 18 * freqScale + noise1.Get(indexTimer, r * 0.42142, i * 0.3455);
+          speakerRow[i].scale.set(sc, 1, 1);
+          speakerRow[i].material.color.copy(colourSpline.Get(freqScale));
+          //speakerRow[i].material.emissive.copy(colourSpline.Get(freqScale));
+          //speakerRow[i].material.emissive.multiplyScalar(freqScale ** 2);
+        }  
+      }
+    }
+  }
     </script>
 </body>
 </html>
