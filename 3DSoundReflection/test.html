@@ -7,19 +7,19 @@
     <!-- Import Three.js library -->
     <script type="importmap">
         {
-			"imports": {
-				"three": "https://unpkg.com/three@0.141.0/build/three.module.js"
-			}
+        "imports": {
+        "three": "https://unpkg.com/three@0.141.0/build/three.module.js"
+        }
         }
     </script>
 </head>
 <body>
-	<div>
-		<label>Audio URL: <input id="txtAudioURL" type="text" value="https://martineaoun.com/3DSoundReflection/tears for fears - mad world.mp3" style="width: 500px;"></label>
-		<audio id="music" preload="auto" style="display: none" crossOrigin="anonymous">
-			<source id="sourceAudio" type="audio/mpeg">
-		</audio>
-	</div>
+    <div>
+        <label>Audio URL: <input id="txtAudioURL" type="text" value="https://martineaoun.com/3DSoundReflection/tears for fears - mad world.mp3" style="width: 500px;"></label>
+        <audio id="music" preload="auto" style="display: none" crossOrigin="anonymous">
+            <source id="sourceAudio" type="audio/mpeg">
+        </audio>
+    </div>
     <div id="overlay">
         <button id="startButton">Play</button>
     </div>
@@ -28,8 +28,8 @@
         import { OrbitControls } from 'https://unpkg.com/three@0.141.0/examples/jsm/controls/OrbitControls.js';
         import { PositionalAudioHelper } from 'https://unpkg.com/three@0.141.0/examples/jsm/helpers/PositionalAudioHelper.js';
         import { GLTFLoader } from 'https://unpkg.com/three@0.141.0/examples/jsm/loaders/GLTFLoader.js';
-		import {math} from './math.js';
-		import {noise} from './noise.js';
+        import {math} from './math.js';
+        import {noise} from './noise.js';
 
         class LinearSpline {
         constructor(lerp) {
@@ -65,23 +65,23 @@
         }
 
         let analyser;
-		let analyserData;
+        let analyserData;
         let mesh;
-		let previousRAF;
-		let indexTimer = 0;
-		let noise1 = new noise.Noise({
-		  octaves: 3,
-		  persistence: 0.5,
-		  lacunarity: 1.6,
-		  exponentiation: 1.0,
-		  height: 1.0,
-		  scale: 0.1,
-		  seed: 1
-		});
-		
-		var boomBoxPositionX = 0;
-		var boomBoxPositionY = -9;
-		var boomBoxPositionZ = 0;
+        let previousRAF;
+        let indexTimer = 0;
+        let noise1 = new noise.Noise({
+        octaves: 3,
+        persistence: 0.5,
+        lacunarity: 1.6,
+        exponentiation: 1.0,
+        height: 1.0,
+        scale: 0.1,
+        seed: 1
+        });
+
+        var boomBoxPositionX = 0;
+        var boomBoxPositionY = -9;
+        var boomBoxPositionZ = 0;
 
         // Initialize Three.js scene, camera, and renderer
         let scene = new THREE.Scene();
@@ -90,7 +90,7 @@
         let camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight);
         camera.position.set( 0, 0, 60 );
         camera.lookAt( scene.position );
-		
+
         var renderer = new THREE.WebGLRenderer( { antialias: true } );
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setAnimationLoop( animationLoop );
@@ -105,16 +105,16 @@
         var light = new THREE.DirectionalLight( 'white', 3 );
         light.position.set( 1, 1, 1 );
         scene.add( light );
-		
-		// Create a grid helper with size 20 and divisions 20
-		let gridHelper = new THREE.GridHelper(20, 20, 0xc1c1c1, 0xc1c1c1 );
-		var gridHelperPositionX = 0;
-		var gridHelperPositionY = -10;
-		var gridHelperPositionZ = 0;
 
-		gridHelper.position.set(gridHelperPositionX,gridHelperPositionY, gridHelperPositionZ); 
-		// Add the grid helper to the scene
-		scene.add(gridHelper);
+        // Create a grid helper with size 20 and divisions 20
+        let gridHelper = new THREE.GridHelper(20, 20, 0xc1c1c1, 0xc1c1c1 );
+        var gridHelperPositionX = 0;
+        var gridHelperPositionY = -10;
+        var gridHelperPositionZ = 0;
+
+        gridHelper.position.set(gridHelperPositionX,gridHelperPositionY, gridHelperPositionZ);
+        // Add the grid helper to the scene
+        scene.add(gridHelper);
 
         var geometry = new THREE.BoxGeometry(20, 20, 0.4),
         material = new THREE.MeshLambertMaterial( {color:'royalblue', transparent: true} );
@@ -147,58 +147,26 @@
         scene.add( ...walls );
 
         var v = new THREE.Vector3(),
-         u = new THREE.Vector3();
-		
-		const transparentColor = 0x000000; // Black color (used for transparency)	
-		const transparentMaterial = new THREE.MeshBasicMaterial({ color: transparentColor, transparent: true, opacity: 0 });
-		const speaker1Material = transparentMaterial;
-		const speaker1 = new THREE.Mesh(
-		  new THREE.BoxGeometry(1, 8, 4),
-		  speaker1Material);
-		speaker1.position.set(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ);
-		speaker1.castShadow = true;
-		speaker1.receiveShadow = true;
-		scene.add(speaker1);
+        u = new THREE.Vector3();
 
-		const speaker1Geo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
-		const speaker1BoxMaterial = transparentMaterial;
-		const speakerMeshes1 = [];
-		const speaker1Group = new THREE.Group();
-		speaker1Group.position.x = boomBoxPositionX;
-		speaker1Group.position.y = 5;
-		speaker1Group.position.z = boomBoxPositionZ;
-		speaker1Group.rotation.y = -Math.PI / 2;
-
-		for (let x = -5; x <= 4; ++x) {
-		  const row = [];
-		  for (let y = 0; y < 16; ++y) {
-			const speaker1_1 = new THREE.Mesh(
-			  speaker1Geo,
-			  new THREE.MeshBasicMaterial({ color: transparentColor, transparent: true, opacity: 1 }));
-			speaker1_1.position.set(0, y*0.35 - 3, x * 0.35);
-			speaker1_1.castShadow = true;
-			speaker1_1.receiveShadow = true;
-			speaker1Group.add(speaker1_1);
-			row.push(speaker1_1);
-		  }
-		  speakerMeshes1.push(row);
-		}
-		speaker1.add(speaker1Group);
-
-		const speakerMesh1_ = speaker1;
+        const transparentColor = 0x000000; // Black color (used for transparency)
+        const transparentMaterial = new THREE.MeshBasicMaterial({ color: transparentColor, transparent: true, opacity: 0 });
+        const speaker1Material = transparentMaterial;
+        const speaker1 = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 1, 0.4),
+        speaker1Material);
+        const speaker1Geo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+        const speaker1BoxMaterial = transparentMaterial;
+        const speakerMeshes1 = [];
+        const speaker1Group = new THREE.Group();
 
         function onWindowResize() {
-
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-
-            renderer.setSize( window.innerWidth, window.innerHeight );
-
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize( window.innerWidth, window.innerHeight );
         }
 
-        function animationLoop( t )
-        {
-
+        function animationLoop( t ) {
         controls.update( );
 
         for( var wall of walls )
@@ -218,130 +186,155 @@
         startButton.addEventListener( 'click', init );
 
         function init() {
-	
-            const overlay = document.getElementById( 'overlay' );
-            overlay.remove();
 
-            const listener = new THREE.AudioListener();
-            camera.add( listener );
+        const overlay = document.getElementById( 'overlay' );
+        overlay.remove();
 
-			debugger;
-            //const audioElement = document.getElementById('music');
-			const sourceAudio = document.getElementById( 'sourceAudio' );
-			const audioURL = document.getElementById( 'txtAudioURL' );
-			sourceAudio.src = audioURL.value;
-			//audioElement.load();
-            //audioElement.play();
+        const listener = new THREE.AudioListener();
+        camera.add( listener );
 
-            const positionalAudio = new THREE.PositionalAudio(listener);
-            //positionalAudio.setMediaElementSource( audioElement );
+        debugger;
+        //const audioElement = document.getElementById('music');
+        const sourceAudio = document.getElementById( 'sourceAudio' );
+        const audioURL = document.getElementById( 'txtAudioURL' );
+        sourceAudio.src = audioURL.value;
+        //audioElement.load();
+        //audioElement.play();
+
+        const positionalAudio = new THREE.PositionalAudio(listener);
+        //positionalAudio.setMediaElementSource( audioElement );
 
 
-            var distanceValue = 20;
-            var coneInnerAngle = 180;
-            var coneOuterAngle = 360;
-            var coneOuterGain = 0.1;
-			var range = 0.1;
-            const helper = new PositionalAudioHelper( positionalAudio, range );
-			
-			const loader = new THREE.AudioLoader();
-			loader.load(audioURL.value, (buffer) => {
-			  setTimeout(() => {
-				positionalAudio.setBuffer(buffer);
-				//positionalAudio.setLoop(false);
-				positionalAudio.setVolume(1.0);
-				positionalAudio.setRefDistance( distanceValue ); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect. 
-				positionalAudio.setDirectionalCone(coneInnerAngle,coneOuterAngle,coneOuterGain);
-				positionalAudio.add(helper);
-				positionalAudio.play();
-				analyser = new THREE.AudioAnalyser(positionalAudio, 32);
-				analyserData = [];
-			  }, 1000);
-			});
-			//positionalAudio.source.onEnded = () => console.log("track ended");
-            
+        var distanceValue = 20;
+        var coneInnerAngle = 180;
+        var coneOuterAngle = 360;
+        var coneOuterGain = 0.1;
+        var range = 0.1;
+        const helper = new PositionalAudioHelper( positionalAudio, range );
 
-            const gltfLoader = new GLTFLoader();
-            gltfLoader.load( 'https://martineaoun.com/3DSoundReflection/BoomBox.glb', function ( gltf ) {
+        const loader = new THREE.AudioLoader();
+        loader.load(audioURL.value, (buffer) => {
+        setTimeout(() => {
+        positionalAudio.setBuffer(buffer);
+        //positionalAudio.setLoop(false);
+        positionalAudio.setVolume(1.0);
+        positionalAudio.setRefDistance( distanceValue ); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect.
+        positionalAudio.setDirectionalCone(coneInnerAngle,coneOuterAngle,coneOuterGain);
+        positionalAudio.add(helper);
+        positionalAudio.play();
+        analyser = new THREE.AudioAnalyser(positionalAudio, 32);
+        analyserData = [];
 
-                const boomBox = gltf.scene;
+        speaker1.position.set(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ);
+        speaker1.castShadow = true;
+        speaker1.receiveShadow = true;
+        scene.add(speaker1);
 
-                boomBox.position.set(boomBoxPositionX,boomBoxPositionY, boomBoxPositionZ); // Position at the center of the room
-                
-                var boomBoxScale = 100;
-                boomBox.scale.set( boomBoxScale, boomBoxScale, boomBoxScale );
-                boomBox.traverse( function ( object ) {
+        speaker1Group.position.x = boomBoxPositionX;
+        speaker1Group.position.y = -boomBoxPositionY;
+        speaker1Group.position.z = boomBoxPositionZ;
+        speaker1Group.rotation.y = -Math.PI / 2;
 
-                    if ( object.isMesh ) {
+        for (let x = -10; x <= 10; ++x) {
+        const row = [];
+        for (let y = 0; y < 16; ++y) {
+        const speaker1_1 = new THREE.Mesh(
+        speaker1Geo,
+        new THREE.MeshBasicMaterial({ color: transparentColor, transparent: true, opacity: 1 }));
+        speaker1_1.position.set(0, y*0.35 - 3, x * 0.35);
+        speaker1_1.castShadow = true;
+        speaker1_1.receiveShadow = true;
+        speaker1Group.add(speaker1_1);
+        row.push(speaker1_1);
+        }
+        speakerMeshes1.push(row);
+        }
+        speaker1.add(speaker1Group);
+        }, 1000);
+        });
 
-                        object.material.envMap = scene;
-                        object.geometry.rotateY( - Math.PI );
-                        object.castShadow = true;
+        const gltfLoader = new GLTFLoader();
+        gltfLoader.load( 'https://martineaoun.com/3DSoundReflection/BoomBox.glb', function ( gltf ) {
 
-                    }
+        const boomBox = gltf.scene;
 
-                } );
+        boomBox.position.set(boomBoxPositionX,boomBoxPositionY, boomBoxPositionZ); // Position at the center of the room
 
-                boomBox.add( positionalAudio );
-                scene.add( boomBox );
-				previousRAF = null;
-				raf_();
+        var boomBoxScale = 100;
+        boomBox.scale.set( boomBoxScale, boomBoxScale, boomBoxScale );
+        boomBox.traverse( function ( object ) {
 
-            } );
+        if ( object.isMesh ) {
+
+        object.material.envMap = scene;
+        object.geometry.rotateY( - Math.PI );
+        object.castShadow = true;
+
+        }
+
+        } );
+
+        boomBox.add( positionalAudio );
+        scene.add( boomBox );
+
+        previousRAF = null;
+        raf_();
+
+        } );
         }
         // Render loop
         function raf_() {
-		    requestAnimationFrame((t) => {
-			  if (previousRAF === null) {
-				previousRAF = t;
-			  }
+        requestAnimationFrame((t) => {
+        if (previousRAF === null) {
+        previousRAF = t;
+        }
 
-			  step_(t - previousRAF);
-			  renderer.render(scene, camera);
+        step_(t - previousRAF);
+        renderer.render(scene, camera);
 
-			  previousRAF = t;
-			  raf_();
-			});
-            //requestAnimationFrame(animate);
-            //renderer.render(scene, camera);
+        previousRAF = t;
+        raf_();
+        });
+        //requestAnimationFrame(animate);
+        //renderer.render(scene, camera);
         }
 
 
-  function step_(timeElapsed) {
-    const timeElapsedS = timeElapsed * 0.001;
+        function step_(timeElapsed) {
+        const timeElapsedS = timeElapsed * 0.001;
 
-    if (analyser) {
-      indexTimer += timeElapsedS * 0.1;
+        if (analyser) {
+        indexTimer += timeElapsedS * 0.1;
 
-      analyserData.push([...analyser.getFrequencyData()]);
-      const rows = 10;
-      if (analyserData.length > rows) {
+        analyserData.push([...analyser.getFrequencyData()]);
+        const rows = speakerMeshes1.length;
+        if (analyserData.length > rows) {
         analyserData.shift();
-      }
+        }
 
-      const colourSpline = new LinearSpline((t, a, b) => {
+        const colourSpline = new LinearSpline((t, a, b) => {
         const c = a.clone();
         return c.lerp(b, t);
-      });
-      colourSpline.AddPoint(0.0, new THREE.Color(0x4040FF));
-      colourSpline.AddPoint(0.25, new THREE.Color(0xFF4040));
-      colourSpline.AddPoint(1.0, new THREE.Color(0xFFFF80));
+        });
+        colourSpline.AddPoint(0.0, new THREE.Color(0x4040FF));
+        colourSpline.AddPoint(0.25, new THREE.Color(0xFF4040));
+        colourSpline.AddPoint(1.0, new THREE.Color(0xFFFF80));
 
-      const remap = [15, 13, 11, 9, 7, 5, 3, 1, 0, 2, 4, 6, 8, 10, 12, 14];
-      for (let r = 0; r < analyserData.length; ++r) {
+        const remap = [15, 13, 11, 9, 7, 5, 3, 1, 0, 2, 4, 6, 8, 10, 12, 14];
+        for (let r = 0; r < analyserData.length; ++r) {
         const data = analyserData[r];
         const speakerRow = speakerMeshes1[r];
         for (let i = 0; i < data.length; ++i) {
-          const freqScale = math.smootherstep((data[remap[i]]/255) ** 0.5, 0, 1);
-          const sc = 1 + 18 * freqScale + noise1.Get(indexTimer, r * 0.42142, i * 0.3455);
-          speakerRow[i].scale.set(sc, 1, 1);
-          speakerRow[i].material.color.copy(colourSpline.Get(freqScale));
-          //speakerRow[i].material.emissive.copy(colourSpline.Get(freqScale));
-          //speakerRow[i].material.emissive.multiplyScalar(freqScale ** 2);
-        }  
-      }
-    }
-  }
+        const freqScale = math.smootherstep((data[remap[i]]/255) ** 0.5, 0, 1);
+        const sc = 1 + 56 * freqScale + noise1.Get(indexTimer, r * 0.42142, i * 0.3455);
+        speakerRow[i].scale.set(sc, 1, 1);
+        speakerRow[i].material.color.copy(colourSpline.Get(freqScale));
+        //speakerRow[i].material.emissive.copy(colourSpline.Get(freqScale));
+        //speakerRow[i].material.emissive.multiplyScalar(freqScale ** 2);
+        }
+        }
+        }
+        }
     </script>
 </body>
 </html>
