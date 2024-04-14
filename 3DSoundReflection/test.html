@@ -1,5 +1,6 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,333 +9,345 @@
     <script type="importmap">
         {
 			"imports": {
-				"three": "https://unpkg.com/three@0.141.0/build/three.module.js"
+				"three": "https://unpkg.com/three@0.120.0/build/three.module.js"
 			}
         }
     </script>
 </head>
+
 <body>
-	<div>
-        <label>Audio URL: <input id="txtAudioURL" type="text" value="https://martineaoun.com/3DSoundReflection/arcade fire - reflektor.mp3" style="width: 500px;"></label>
-		<audio id="music" preload="auto" style="display: none" crossOrigin="anonymous">
-			<source id="sourceAudio" type="audio/mpeg">
-		</audio>
-	</div>
+    <div>
+        <label>Audio URL: <input id="txtAudioURL" type="text"
+                value="https://martineaoun.com/3DSoundReflection/tears for fears - mad world.mp3"
+                style="width: 500px;"></label>
+        <audio id="music" preload="auto" style="display: none" crossOrigin="anonymous">
+            <source id="sourceAudio" type="audio/mpeg">
+        </audio>
+    </div>
     <div id="overlay">
         <button id="startButton">Play</button>
     </div>
     <script type="module">
         import * as THREE from 'three';
-        import { OrbitControls } from 'https://unpkg.com/three@0.141.0/examples/jsm/controls/OrbitControls.js';
-        import { PositionalAudioHelper } from 'https://unpkg.com/three@0.141.0/examples/jsm/helpers/PositionalAudioHelper.js';
-        import { GLTFLoader } from 'https://unpkg.com/three@0.141.0/examples/jsm/loaders/GLTFLoader.js';
-		import {math} from './math.js';
-		import {noise} from './noise.js';
+        import { OrbitControls } from 'https://unpkg.com/three@0.120.0/examples/jsm/controls/OrbitControls.js';
+        import { PositionalAudioHelper } from 'https://unpkg.com/three@0.120.0/examples/jsm/helpers/PositionalAudioHelper.js';
+        import { GLTFLoader } from 'https://unpkg.com/three@0.120.0/examples/jsm/loaders/GLTFLoader.js';
+        import { simplex } from './simplex-noise.js';
 
-        class LinearSpline {
-			constructor(lerp) {
-				this.points_ = [];
-				this._lerp = lerp;
-			}
-
-			AddPoint(t, d) {
-				this.points_.push([t, d]);
-			}
-
-			Get(t) {
-				let p1 = 0;
-
-				for (let i = 0; i < this.points_.length; i++) {
-					if (this.points_[i][0] >= t) {
-						break;
-					}
-					p1 = i;
-				}
-
-				const p2 = Math.min(this.points_.length - 1, p1 + 1);
-
-				if (p1 == p2) {
-				return this.points_[p1][1];
-				}
-
-				return this._lerp(
-					(t - this.points_[p1][0]) / (
-					this.points_[p2][0] - this.points_[p1][0]),
-					this.points_[p1][1], this.points_[p2][1]);
-			}
-        }
-
+        const noise = new simplex.SimplexNoise();
+        
+        var roomCubeDimension = 20;
+        var boomBoxPositionX = 0;
+        var boomBoxPositionY = -(roomCubeDimension/2) + 1;
+        var boomBoxPositionZ = 0;
+        
         let analyser;
-		let analyserData;
-        let mesh;
-		let previousRAF;
-		let indexTimer = 0;
-		let noise1 = new noise.Noise({
-		  octaves: 3,
-		  persistence: 0.5,
-		  lacunarity: 1.6,
-		  exponentiation: 1.0,
-		  height: 1.0,
-		  scale: 0.1,
-		  seed: 1
-		});
-		
-		var boomBoxPositionX = 0;
-		var boomBoxPositionY = -9;
-		var boomBoxPositionZ = 0;
+        let dataArray;
+        let group;
+        let plane;
+        let plane2;
+        let ball;
+
 
         // Initialize Three.js scene, camera, and renderer
         let scene = new THREE.Scene();
-        scene.background = new THREE.Color( 'gainsboro' );
+        scene.background = new THREE.Color('gainsboro');
 
         let camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight);
-        camera.position.set( 0, 0, 60 );
-        camera.lookAt( scene.position );
-		
-        var renderer = new THREE.WebGLRenderer( { antialias: true } );
+        camera.position.set(0, 0, 60);
+        camera.lookAt(scene.position);
+
+        group = new THREE.Group();
+
+        var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setAnimationLoop( animationLoop );
+        renderer.setAnimationLoop(animationLoop);
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        window.addEventListener( 'resize', onWindowResize );
+        window.addEventListener('resize', onWindowResize);
 
-        var controls = new OrbitControls( camera, renderer.domElement );
+        var controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
-        var light = new THREE.DirectionalLight( 'white', 3 );
-        light.position.set( 1, 1, 1 );
-        scene.add( light );
-		
-		// Create a grid helper with size 20 and divisions 20
-		let gridHelper = new THREE.GridHelper(20, 20, 0xc1c1c1, 0xc1c1c1 );
-		var gridHelperPositionX = 0;
-		var gridHelperPositionY = -10;
-		var gridHelperPositionZ = 0;
+        var light = new THREE.DirectionalLight('white', 1);
+        light.position.set(1, 1, 1);
+        scene.add(light);
 
-		gridHelper.position.set(gridHelperPositionX,gridHelperPositionY, gridHelperPositionZ); 
-		// Add the grid helper to the scene
-		scene.add(gridHelper);
+        // Create a grid helper
+        let gridHelper = new THREE.GridHelper(roomCubeDimension, roomCubeDimension, 0xc1c1c1, 0xc1c1c1);
+        var gridHelperPositionX = 0;
+        var gridHelperPositionY = -roomCubeDimension/2;
+        var gridHelperPositionZ = 0;
 
-        var geometry = new THREE.BoxGeometry(20, 20, 0.4),
-        material = new THREE.MeshLambertMaterial( {color:'royalblue', transparent: true} );
+        gridHelper.position.set(gridHelperPositionX, gridHelperPositionY, gridHelperPositionZ);
+        // Add the grid helper to the scene
+        scene.add(gridHelper);
 
-        var wall1 = new THREE.Mesh( geometry, material.clone() );
-        wall1.position.z = 10;
+        var geometry = new THREE.BoxGeometry(roomCubeDimension, roomCubeDimension, 0.4),
+            material = new THREE.MeshLambertMaterial({ color: 'royalblue', transparent: true });
 
-        var wall2 = new THREE.Mesh( geometry, material.clone() );
+        var wall1 = new THREE.Mesh(geometry, material.clone());
+        wall1.position.z = roomCubeDimension/2;
+
+        var wall2 = new THREE.Mesh(geometry, material.clone());
         wall2.rotation.y = Math.PI;
-        wall2.position.z = -10;
+        wall2.position.z = -roomCubeDimension/2;
 
-        var wall3 = new THREE.Mesh( geometry, material.clone() );
-        wall3.rotation.y = Math.PI/2;
-        wall3.position.x = 10;
+        var wall3 = new THREE.Mesh(geometry, material.clone());
+        wall3.rotation.y = Math.PI / 2;
+        wall3.position.x = roomCubeDimension/2;
 
-        var wall4 = new THREE.Mesh( geometry, material.clone() );
-        wall4.rotation.y = -Math.PI/2;
-        wall4.position.x = -10;
+        var wall4 = new THREE.Mesh(geometry, material.clone());
+        wall4.rotation.y = -Math.PI / 2;
+        wall4.position.x = -roomCubeDimension/2;
 
-        var wall5 = new THREE.Mesh( geometry, material.clone() );
-        wall5.rotation.x = Math.PI/2;
-        wall5.position.y = -10;
+        var wall5 = new THREE.Mesh(geometry, material.clone());
+        wall5.rotation.x = Math.PI / 2;
+        wall5.position.y = -roomCubeDimension/2;
 
-        var wall6 = new THREE.Mesh( geometry, material.clone() );
-        wall6.rotation.x = -Math.PI/2;
-        wall6.position.y = 10;
+        var wall6 = new THREE.Mesh(geometry, material.clone());
+        wall6.rotation.x = -Math.PI / 2;
+        wall6.position.y = roomCubeDimension/2;
 
         var walls = [wall1, wall2, wall3, wall4, wall5, wall6];
 
-        scene.add( ...walls );
+        scene.add(...walls);
 
         var v = new THREE.Vector3(),
-         u = new THREE.Vector3();
-		
-		const transparentColor = 0x000000; // Black color (used for transparency)	
-		const transparentMaterial = new THREE.MeshBasicMaterial({ color: transparentColor, transparent: true, opacity: 0 });
-		const speaker1Material = transparentMaterial;
-		const speaker1 = new THREE.Mesh(
-		  new THREE.BoxGeometry(1, 1, 0.4),
-		  speaker1Material);
-		const speaker1Geo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
-		const speaker1BoxMaterial = transparentMaterial;
-		const speakerMeshes1 = [];
-		const speaker1Group = new THREE.Group();
-		
+            u = new THREE.Vector3();
+
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
-            renderer.setSize( window.innerWidth, window.innerHeight );
+            renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function animationLoop( t ) {
-			controls.update( );
+        function animationLoop(t) {
+            controls.update();
 
-			for( var wall of walls )
-			{
-				wall.getWorldDirection( v );
-				camera.getWorldDirection( u );
+            for (var wall of walls) {
+                wall.getWorldDirection(v);
+                camera.getWorldDirection(u);
 
-				wall.material.opacity = 2*v.dot(u); 		// soft
-				//wall.visible = v.dot(u) > 0; 					// hard
-			}
+                wall.material.opacity = 2 * v.dot(u); 		// soft
+                //wall.visible = v.dot(u) > 0; 					// hard
+            }
 
-			light.position.copy( camera.position );
-			renderer.render( scene, camera );
+            //light.position.copy(camera.position);
+            renderer.render(scene, camera);
         }
 
-        const startButton = document.getElementById( 'startButton' );
-        startButton.addEventListener( 'click', init );
+        const startButton = document.getElementById('startButton');
+        startButton.addEventListener('click', init);
 
         function init() {
-	
-            const overlay = document.getElementById( 'overlay' );
+
+            const overlay = document.getElementById('overlay');
             overlay.remove();
 
             const listener = new THREE.AudioListener();
-            camera.add( listener );
+            camera.add(listener);
 
-			debugger;
-            //const audioElement = document.getElementById('music');
-			const sourceAudio = document.getElementById( 'sourceAudio' );
-			const audioURL = document.getElementById( 'txtAudioURL' );
-			sourceAudio.src = audioURL.value;
-			//audioElement.load();
-            //audioElement.play();
+            const sourceAudio = document.getElementById('sourceAudio');
+            const audioURL = document.getElementById('txtAudioURL');
+
+            sourceAudio.src = audioURL.value;
 
             const positionalAudio = new THREE.PositionalAudio(listener);
-            //positionalAudio.setMediaElementSource( audioElement );
 
-
-            var distanceValue = 20;
+            var distanceValue = roomCubeDimension;
             var coneInnerAngle = 180;
             var coneOuterAngle = 360;
             var coneOuterGain = 0.1;
-			var range = 0.1;
-            const helper = new PositionalAudioHelper( positionalAudio, range );
-			
-			const loader = new THREE.AudioLoader();
-			loader.load(audioURL.value, (buffer) => {
-			  setTimeout(() => {
-				positionalAudio.setBuffer(buffer);
-				//positionalAudio.setLoop(false);
-				positionalAudio.setVolume(1.0);
-				positionalAudio.setRefDistance( distanceValue ); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect. 
-				positionalAudio.setDirectionalCone(coneInnerAngle,coneOuterAngle,coneOuterGain);
-				positionalAudio.add(helper);
-				positionalAudio.play();
-				analyser = new THREE.AudioAnalyser(positionalAudio, 32);
-				analyserData = [];
-				
-				speaker1.position.set(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ);
-				speaker1.castShadow = true;
-				speaker1.receiveShadow = true;
-				scene.add(speaker1);
+            var range = 0.1;
+            const helper = new PositionalAudioHelper(positionalAudio, range);
 
-				speaker1Group.position.x = boomBoxPositionX;
-				speaker1Group.position.y = -boomBoxPositionY;
-				speaker1Group.position.z = boomBoxPositionZ;
-				speaker1Group.rotation.y = -Math.PI / 2;
+            const loader = new THREE.AudioLoader();
+            loader.load(audioURL.value, (buffer) => {
+                setTimeout(() => {
+                    positionalAudio.setBuffer(buffer);
+                    //positionalAudio.setLoop(false);
+                    positionalAudio.setVolume(1.0);
+                    positionalAudio.setRefDistance(distanceValue); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect. 
+                    positionalAudio.setDirectionalCone(coneInnerAngle, coneOuterAngle, coneOuterGain);
+                    positionalAudio.add(helper);
+                    positionalAudio.play();
+                    var audioAnalyser = new THREE.AudioAnalyser(positionalAudio);
+                    analyser = audioAnalyser.analyser;
+                    analyser.fftSize = 1024; // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode/fftSize
+                    
+                    var bufferLength = analyser.frequencyBinCount;
+                    dataArray = new Uint8Array(bufferLength);
 
-				for (let x = -10; x <= 10; ++x) {
-				  const row = [];
-				  for (let y = 0; y < 16; ++y) {
-					const speaker1_1 = new THREE.Mesh(
-					  speaker1Geo,
-					  new THREE.MeshBasicMaterial({ color: transparentColor, transparent: true, opacity: 1 }));
-					speaker1_1.position.set(0, y*0.35 - 3, x * 0.35);
-					speaker1_1.castShadow = true;
-					speaker1_1.receiveShadow = true;
-					speaker1Group.add(speaker1_1);
-					row.push(speaker1_1);
-				  }
-				  speakerMeshes1.push(row);
-				}
-				speaker1.add(speaker1Group);
-			  }, 1000);
-			});       
+                    var planeGeometry = new THREE.PlaneGeometry(800, 800, 20, 20);
+                    var planeMaterial = new THREE.MeshLambertMaterial({
+                        color: 0x6904ce,
+                        side: THREE.DoubleSide,
+                        wireframe: true,
+                        opacity: 0.5
+                    });
 
-            const gltfLoader = new GLTFLoader();
-            gltfLoader.load( 'https://martineaoun.com/3DSoundReflection/BoomBox.glb', function ( gltf ) {
+                    plane = new THREE.Mesh(planeGeometry, planeMaterial);
+                    plane.rotation.x = -0.5 * Math.PI;
+                    plane.position.set(0, 30, 0);
+                    group.add(plane);
 
-                const boomBox = gltf.scene;
+                    plane2 = new THREE.Mesh(planeGeometry, planeMaterial);
+                    plane2.rotation.x = -0.5 * Math.PI;
+                    plane2.position.set(0, -30, 0);
+                    group.add(plane2);
 
-                boomBox.position.set(boomBoxPositionX,boomBoxPositionY, boomBoxPositionZ); // Position at the center of the room
-                
-                var boomBoxScale = 100;
-                boomBox.scale.set( boomBoxScale, boomBoxScale, boomBoxScale );
-                boomBox.traverse( function ( object ) {
+                    var icosahedronGeometry = new THREE.IcosahedronGeometry(10, 4);
+                    var lambertMaterial = new THREE.MeshLambertMaterial({
+                        color: 0xff00ee,
+                        wireframe: true,
+                        opacity: 0.9,
+                        side: THREE.DoubleSide,
+                        vertexColors: true,
+                        reflectivity: 1,
+                        refractionRatio: 1
+                    });
 
-                    if ( object.isMesh ) {
+                    ball = new THREE.Mesh(icosahedronGeometry, lambertMaterial);
+                    ball.position.set(0, 0, 0);
+                    group.add(ball);
 
-                        object.material.envMap = scene;
-                        object.geometry.rotateY( - Math.PI );
-                        object.castShadow = true;
+                    var ambientLight = new THREE.AmbientLight(0xaaaaaa);
+                    scene.add(ambientLight);
 
-                    }
+                    var spotLight = new THREE.SpotLight(0xffffff);
+                    spotLight.intensity = 0.9;
+                    spotLight.position.set(-10, 40, 20);
+                    spotLight.lookAt(ball);
+                    spotLight.castShadow = true;
+                    scene.add(spotLight);
 
-                } );
+                    scene.add(group);
 
-                boomBox.add( positionalAudio );
-                scene.add( boomBox );
-				
-				previousRAF = null;
-				raf_();
+                    const gltfLoader = new GLTFLoader();
+                    gltfLoader.load('https://martineaoun.com/3DSoundReflection/BoomBox.glb', function (gltf) {
 
-            } );
+                        const boomBox = gltf.scene;
+
+                        boomBox.position.set(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ); // Position at the center of the room
+
+                        var boomBoxScale = 100;
+                        boomBox.scale.set(boomBoxScale, boomBoxScale, boomBoxScale);
+                        boomBox.traverse(function (object) {
+
+                            if (object.isMesh) {
+                                object.material.envMap = scene;
+                                object.geometry.rotateY(- Math.PI);
+                                object.castShadow = true;
+                            }
+
+                        });
+
+                        boomBox.add(positionalAudio);
+                        scene.add(boomBox);
+
+                        animate();
+
+                    });
+
+                }, 1000);
+            });
         }
+
         // Render loop
-        function raf_() {
-		    requestAnimationFrame((t) => {
-			  if (previousRAF === null) {
-				previousRAF = t;
-			  }
+        function animate() {
+            analyser.getByteFrequencyData(dataArray);
 
-			  step_(t - previousRAF);
-			  renderer.render(scene, camera);
+            var lowerHalfArray = dataArray.slice(0, (dataArray.length / 2) - 1);
+            var upperHalfArray = dataArray.slice((dataArray.length / 2) - 1, dataArray.length - 1);
 
-			  previousRAF = t;
-			  raf_();
-			});
-            //requestAnimationFrame(animate);
-            //renderer.render(scene, camera);
+            var overallAvg = avg(dataArray);
+            var lowerMax = max(lowerHalfArray);
+            var lowerAvg = avg(lowerHalfArray);
+            var upperMax = max(upperHalfArray);
+            var upperAvg = avg(upperHalfArray);
+
+            var lowerMaxFr = lowerMax / lowerHalfArray.length;
+            var lowerAvgFr = lowerAvg / lowerHalfArray.length;
+            var upperMaxFr = upperMax / upperHalfArray.length;
+            var upperAvgFr = upperAvg / upperHalfArray.length;
+
+            makeRoughGround(plane, modulate(upperAvgFr, 0, 1, 0.5, 4));
+            makeRoughGround(plane2, modulate(lowerMaxFr, 0, 1, 0.5, 4));
+
+            makeRoughBall(ball, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
+
+            // Update the visualization color based on the average frequency data
+            const averageFrequency = getAverageFrequency(dataArray);
+            const newColor = new THREE.Color().setHSL(averageFrequency / 255, 1, 0.5); // Adjust color based on average frequency
+            ball.material.color.copy(newColor);
+
+            //group.rotation.y += 0.005;
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
         }
 
 
-		function step_(timeElapsed) {
-			const timeElapsedS = timeElapsed * 0.001;
+        function makeRoughBall(mesh, bassFr, treFr) {
+            mesh.geometry.vertices.forEach(function (vertex, i) {
+                var offset = mesh.geometry.parameters.radius;
+                var amp = 7;
+                var time = window.performance.now();
+                vertex.normalize();
+                var rf = 0.00001;
+                var distance = (offset + bassFr) + noise.noise3D(vertex.x + time * rf * 7, vertex.y + time * rf * 8, vertex.z + time * rf * 9) * amp * treFr;
+                vertex.multiplyScalar(distance);
+            });
+            mesh.geometry.verticesNeedUpdate = true;
+            mesh.geometry.normalsNeedUpdate = true;
+            mesh.geometry.computeVertexNormals();
+            mesh.geometry.computeFaceNormals();
+        }
 
-			if (analyser) {
-			  indexTimer += timeElapsedS * 0.1;
+        function makeRoughGround(mesh, distortionFr) {
+            mesh.geometry.vertices.forEach(function (vertex, i) {
+                var amp = 2;
+                var time = Date.now();
+                var distance = (noise.noise2D(vertex.x + time * 0.0003, vertex.y + time * 0.0001) + 0) * distortionFr * amp;
+                vertex.z = distance;
+            });
+            mesh.geometry.verticesNeedUpdate = true;
+            mesh.geometry.normalsNeedUpdate = true;
+            mesh.geometry.computeVertexNormals();
+            mesh.geometry.computeFaceNormals();
 
-			  analyserData.push([...analyser.getFrequencyData()]);
-			  const rows = speakerMeshes1.length;
-			  if (analyserData.length > rows) {
-				analyserData.shift();
-			  }
+        }
 
-			  const colourSpline = new LinearSpline((t, a, b) => {
-				const c = a.clone();
-				return c.lerp(b, t);
-			  });
-			  colourSpline.AddPoint(0.0, new THREE.Color(0x4040FF));
-			  colourSpline.AddPoint(0.25, new THREE.Color(0xFF4040));
-			  colourSpline.AddPoint(1.0, new THREE.Color(0xFFFF80));
+        function fractionate(val, minVal, maxVal) {
+            return (val - minVal) / (maxVal - minVal);
+        }
 
-			  const remap = [15, 13, 11, 9, 7, 5, 3, 1, 0, 2, 4, 6, 8, 10, 12, 14];
-			  for (let r = 0; r < analyserData.length; ++r) {
-				const data = analyserData[r];
-				const speakerRow = speakerMeshes1[r];
-				for (let i = 0; i < data.length; ++i) {
-				  const freqScale = math.smootherstep((data[remap[i]]/255) ** 0.5, 0, 1);
-				  const sc = 1 + 56 * freqScale + noise1.Get(indexTimer, r * 0.42142, i * 0.3455);
-				  speakerRow[i].scale.set(sc, 1, 1);
-				  speakerRow[i].material.color.copy(colourSpline.Get(freqScale));
-				  //speakerRow[i].material.emissive.copy(colourSpline.Get(freqScale));
-				  //speakerRow[i].material.emissive.multiplyScalar(freqScale ** 2);
-				}  
-			  }
-			}
-		}
+        function modulate(val, minVal, maxVal, outMin, outMax) {
+            var fr = fractionate(val, minVal, maxVal);
+            var delta = outMax - outMin;
+            return outMin + (fr * delta);
+        }
+
+        function avg(arr) {
+            var total = arr.reduce(function (sum, b) { return sum + b; });
+            return (total / arr.length);
+        }
+
+        function max(arr) {
+            return arr.reduce(function (a, b) { return Math.max(a, b); })
+        }
+
+        // Function to calculate the average frequency from frequency data
+        function getAverageFrequency(frequencyData) {
+            let sum = 0;
+            for (let i = 0; i < frequencyData.length; i++) {
+                sum += frequencyData[i];
+            }
+            return sum / frequencyData.length;
+        }
     </script>
 </body>
+
 </html>
