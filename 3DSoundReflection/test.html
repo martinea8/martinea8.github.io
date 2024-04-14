@@ -149,14 +149,15 @@
 
         function init() {
 
+            const sourceAudio = document.getElementById('sourceAudio');
+            const audioURL = document.getElementById('txtAudioURL');
+
             const overlay = document.getElementById('overlay');
             overlay.remove();
+            audioURL.disabled = true;
 
             const listener = new THREE.AudioListener();
             camera.add(listener);
-
-            const sourceAudio = document.getElementById('sourceAudio');
-            const audioURL = document.getElementById('txtAudioURL');
 
             sourceAudio.src = audioURL.value;
 
