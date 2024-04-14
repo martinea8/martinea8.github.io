@@ -23,15 +23,15 @@
 
 <body>
     <div>
-        <label>Audio URL: <input id="txtAudioURL" type="text"
+        <input id="txtAudioURL" type="url" title="Audio URL"
                 value="https://martineaoun.com/3DSoundReflection/tears for fears - mad world.mp3"
-                style="width: 500px;"></label>
+                style="width: 500px;">
         <audio id="music" preload="auto" style="display: none" crossOrigin="anonymous">
             <source id="sourceAudio" type="audio/mpeg">
         </audio>
-    </div>
-    <div id="overlay">
-        <button id="startButton">Play</button>
+        <div id="overlay">
+            <button id="startButton" style="width: 500px;height: 50px;">Play</button>
+        </div>
     </div>
     <script type="module">
         import * as THREE from 'three';
