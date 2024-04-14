@@ -179,7 +179,36 @@
                     positionalAudio.setRefDistance(distanceValue); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect. 
                     positionalAudio.setDirectionalCone(coneInnerAngle, coneOuterAngle, coneOuterGain);
                     positionalAudio.add(helper);
+                    
+                    const gltfLoader = new GLTFLoader();
+                    gltfLoader.load('./BoomBox.glb', function (gltf) {
+
+                        const boomBox = gltf.scene;
+
+                        boomBox.position.set(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ); // Position at the center of the room
+
+                        var boomBoxScale = 100;
+                        boomBox.scale.set(boomBoxScale, boomBoxScale, boomBoxScale);
+                        boomBox.traverse(function (object) {
+
+                            if (object.isMesh) {
+                                object.material.envMap = scene;
+                                object.geometry.rotateY(- Math.PI);
+                                object.castShadow = true;
+                            }
+
+                        });
+
+                        boomBox.add(positionalAudio);
+                        scene.add(boomBox);
+
+                        animate();
+
+                    });
+                    
                     positionalAudio.play();
+
+
                     var audioAnalyser = new THREE.AudioAnalyser(positionalAudio);
                     analyser = audioAnalyser.analyser;
                     analyser.fftSize = 1024; // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode/fftSize
@@ -231,32 +260,6 @@
                     scene.add(spotLight);
 
                     scene.add(group);
-
-                    const gltfLoader = new GLTFLoader();
-                    gltfLoader.load('./BoomBox.glb', function (gltf) {
-
-                        const boomBox = gltf.scene;
-
-                        boomBox.position.set(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ); // Position at the center of the room
-
-                        var boomBoxScale = 100;
-                        boomBox.scale.set(boomBoxScale, boomBoxScale, boomBoxScale);
-                        boomBox.traverse(function (object) {
-
-                            if (object.isMesh) {
-                                object.material.envMap = scene;
-                                object.geometry.rotateY(- Math.PI);
-                                object.castShadow = true;
-                            }
-
-                        });
-
-                        boomBox.add(positionalAudio);
-                        scene.add(boomBox);
-
-                        animate();
-
-                    });
 
                 }, 1000);
             });
