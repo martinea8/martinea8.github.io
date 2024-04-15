@@ -18,8 +18,8 @@
 <body style="font-size: 16px;">
     <div>
         <input id="txtAudioURL" type="text" title="Audio URL"
-                value="https://martineaoun.com/3DSoundReflection/tears for fears - everybody wants to rule the world.mp3"
-                style="width: 100%;height: 30px;font-size: 16px !important;">
+            value="https://martineaoun.com/3DSoundReflection/tears for fears - everybody wants to rule the world.mp3"
+            style="width: 100%;height: 30px;font-size: 16px !important;">
         <audio id="music" preload="auto" style="display: none" crossOrigin="anonymous">
             <source id="sourceAudio" type="audio/mpeg">
         </audio>
@@ -35,18 +35,20 @@
         import { simplex } from './simplex-noise.js';
 
         const noise = new simplex.SimplexNoise();
-        
+
         var roomCubeDimension = 20;
         var boomBoxPositionX = 0;
-        var boomBoxPositionY = -(roomCubeDimension/2) + 1;
+        var boomBoxPositionY = -(roomCubeDimension / 2) + 1;
         var boomBoxPositionZ = 0;
-        
+
         let analyser;
         let dataArray;
         let group;
         let plane;
         let plane2;
         let ball;
+        let particleSystem; // Variable to hold the particle system
+        let isSoundPlaying = false;
 
 
         // Initialize Three.js scene, camera, and renderer
@@ -77,7 +79,7 @@
         // Create a grid helper
         let gridHelper = new THREE.GridHelper(roomCubeDimension, roomCubeDimension, 0xc1c1c1, 0xc1c1c1);
         var gridHelperPositionX = 0;
-        var gridHelperPositionY = -roomCubeDimension/2;
+        var gridHelperPositionY = -roomCubeDimension / 2;
         var gridHelperPositionZ = 0;
 
         gridHelper.position.set(gridHelperPositionX, gridHelperPositionY, gridHelperPositionZ);
@@ -88,27 +90,27 @@
             material = new THREE.MeshLambertMaterial({ color: 'royalblue', transparent: true });
 
         var wall1 = new THREE.Mesh(geometry, material.clone());
-        wall1.position.z = roomCubeDimension/2;
+        wall1.position.z = roomCubeDimension / 2;
 
         var wall2 = new THREE.Mesh(geometry, material.clone());
         wall2.rotation.y = Math.PI;
-        wall2.position.z = -roomCubeDimension/2;
+        wall2.position.z = -roomCubeDimension / 2;
 
         var wall3 = new THREE.Mesh(geometry, material.clone());
         wall3.rotation.y = Math.PI / 2;
-        wall3.position.x = roomCubeDimension/2;
+        wall3.position.x = roomCubeDimension / 2;
 
         var wall4 = new THREE.Mesh(geometry, material.clone());
         wall4.rotation.y = -Math.PI / 2;
-        wall4.position.x = -roomCubeDimension/2;
+        wall4.position.x = -roomCubeDimension / 2;
 
         var wall5 = new THREE.Mesh(geometry, material.clone());
         wall5.rotation.x = Math.PI / 2;
-        wall5.position.y = -roomCubeDimension/2;
+        wall5.position.y = -roomCubeDimension / 2;
 
         var wall6 = new THREE.Mesh(geometry, material.clone());
         wall6.rotation.x = -Math.PI / 2;
-        wall6.position.y = roomCubeDimension/2;
+        wall6.position.y = roomCubeDimension / 2;
 
         var walls = [wall1, wall2, wall3, wall4, wall5, wall6];
 
@@ -173,9 +175,9 @@
                     positionalAudio.setRefDistance(distanceValue); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect. 
                     positionalAudio.setDirectionalCone(coneInnerAngle, coneOuterAngle, coneOuterGain);
                     positionalAudio.add(helper);
-                    
+
                     const gltfLoader = new GLTFLoader();
-                    gltfLoader.load('./BoomBox.glb', function (gltf) {
+                    gltfLoader.load('https://martineaoun.com/3DSoundReflection/BoomBox.glb', function (gltf) {
 
                         const boomBox = gltf.scene;
 
@@ -197,104 +199,166 @@
                         scene.add(boomBox);
 
                         setTimeout(() => {
-                        positionalAudio.play();
+                            positionalAudio.play();
+                            isSoundPlaying = true;
 
+                            // Stop the animation loop when the sound finishes
+                            positionalAudio.onEnded = function () {
+                                isSoundPlaying = false;
+                            };
 
-                        var audioAnalyser = new THREE.AudioAnalyser(positionalAudio);
-                        analyser = audioAnalyser.analyser;
-                        analyser.fftSize = 1024; // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode/fftSize
+                            var audioAnalyser = new THREE.AudioAnalyser(positionalAudio);
+                            analyser = audioAnalyser.analyser;
+                            analyser.fftSize = 1024; // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode/fftSize
 
-                        var bufferLength = analyser.frequencyBinCount;
-                        dataArray = new Uint8Array(bufferLength);
+                            var bufferLength = analyser.frequencyBinCount;
+                            dataArray = new Uint8Array(bufferLength);
 
-                        var planeGeometry = new THREE.PlaneGeometry(800, 800, 20, 20);
-                        var planeMaterial = new THREE.MeshLambertMaterial({
-                        color: 0x6904ce,
-                        side: THREE.DoubleSide,
-                        wireframe: true,
-                        opacity: 0.5
-                        });
+                            var planeGeometry = new THREE.PlaneGeometry(800, 800, 20, 20);
+                            var planeMaterial = new THREE.MeshLambertMaterial({
+                                color: 0x6904ce,
+                                side: THREE.DoubleSide,
+                                wireframe: true,
+                                opacity: 0.5
+                            });
 
-                        plane = new THREE.Mesh(planeGeometry, planeMaterial);
-                        plane.rotation.x = -0.5 * Math.PI;
-                        plane.position.set(0, 30, 0);
-                        group.add(plane);
+                            plane = new THREE.Mesh(planeGeometry, planeMaterial);
+                            plane.rotation.x = -0.5 * Math.PI;
+                            plane.position.set(0, 30, 0);
+                            group.add(plane);
 
-                        plane2 = new THREE.Mesh(planeGeometry, planeMaterial);
-                        plane2.rotation.x = -0.5 * Math.PI;
-                        plane2.position.set(0, -30, 0);
-                        group.add(plane2);
+                            plane2 = new THREE.Mesh(planeGeometry, planeMaterial);
+                            plane2.rotation.x = -0.5 * Math.PI;
+                            plane2.position.set(0, -30, 0);
+                            group.add(plane2);
 
-                        var icosahedronGeometry = new THREE.IcosahedronGeometry(10, 4);
-                        var lambertMaterial = new THREE.MeshLambertMaterial({
-                        color: 0xff00ee,
-                        wireframe: true,
-                        opacity: 0.9,
-                        side: THREE.DoubleSide,
-                        vertexColors: true,
-                        reflectivity: 1,
-                        refractionRatio: 1
-                        });
+                            var icosahedronGeometry = new THREE.IcosahedronGeometry(10, 4);
+                            var lambertMaterial = new THREE.MeshLambertMaterial({
+                                color: 0xff00ee,
+                                wireframe: true,
+                                opacity: 0.9,
+                                side: THREE.DoubleSide,
+                                vertexColors: true,
+                                reflectivity: 1,
+                                refractionRatio: 1
+                            });
 
-                        ball = new THREE.Mesh(icosahedronGeometry, lambertMaterial);
-                        ball.position.set(0, 0, 0);
-                        group.add(ball);
+                            ball = new THREE.Mesh(icosahedronGeometry, lambertMaterial);
+                            ball.position.set(0, 0, 0);
+                            group.add(ball);
 
-                        var ambientLight = new THREE.AmbientLight(0xaaaaaa);
-                        scene.add(ambientLight);
+                            var ambientLight = new THREE.AmbientLight(0xaaaaaa);
+                            scene.add(ambientLight);
 
-                        var spotLight = new THREE.SpotLight(0xffffff);
-                        spotLight.intensity = 0.9;
-                        spotLight.position.set(-10, 40, 20);
-                        spotLight.lookAt(ball);
-                        spotLight.castShadow = true;
-                        scene.add(spotLight);
+                            var spotLight = new THREE.SpotLight(0xffffff);
+                            spotLight.intensity = 0.9;
+                            spotLight.position.set(-10, 40, 20);
+                            spotLight.lookAt(ball);
+                            spotLight.castShadow = true;
+                            scene.add(spotLight);
 
-                        scene.add(group);
+                            scene.add(group);
 
-                        animate();
-                        }, 1000);  
+                            var particleCount = 1000;
+                            var particles = new THREE.Geometry();
+                            var bufferSpace = 5; // Add buffer space between particles and room boundaries
+
+                            for (var p = 0; p < particleCount; p++) {
+                                var x = (Math.random() - 0.5) * (roomCubeDimension - bufferSpace * 2); // Spread particles uniformly within room width with buffer space
+                                var y = (Math.random() - 0.5) * (roomCubeDimension - bufferSpace * 2); // Spread particles uniformly within room height with buffer space
+                                var z = (Math.random() - 0.5) * (roomCubeDimension - bufferSpace * 2); // Spread particles uniformly within room depth with buffer space
+
+                                var particle = new THREE.Vector3(x, y, z);
+
+                                particles.vertices.push(particle);
+                            }
+
+                            var particleMaterial = new THREE.PointsMaterial({
+                                color: 'red',
+                                size: 0.2
+                            });
+
+                            particleSystem = new THREE.Points(particles, particleMaterial);
+                            scene.add(particleSystem);
+
+                            animate();
+                        }, 1000);
 
                     });
-                    
+
                 }, 1000);
             });
         }
 
         // Render loop
         function animate() {
-            analyser.getByteFrequencyData(dataArray);
+            if (isSoundPlaying) {
+                analyser.getByteFrequencyData(dataArray);
 
-            var lowerHalfArray = dataArray.slice(0, (dataArray.length / 2) - 1);
-            var upperHalfArray = dataArray.slice((dataArray.length / 2) - 1, dataArray.length - 1);
+                var lowerHalfArray = dataArray.slice(0, (dataArray.length / 2) - 1);
+                var upperHalfArray = dataArray.slice((dataArray.length / 2) - 1, dataArray.length - 1);
 
-            var overallAvg = avg(dataArray);
-            var lowerMax = max(lowerHalfArray);
-            var lowerAvg = avg(lowerHalfArray);
-            var upperMax = max(upperHalfArray);
-            var upperAvg = avg(upperHalfArray);
+                var overallAvg = avg(dataArray);
+                var lowerMax = max(lowerHalfArray);
+                var lowerAvg = avg(lowerHalfArray);
+                var upperMax = max(upperHalfArray);
+                var upperAvg = avg(upperHalfArray);
 
-            var lowerMaxFr = lowerMax / lowerHalfArray.length;
-            var lowerAvgFr = lowerAvg / lowerHalfArray.length;
-            var upperMaxFr = upperMax / upperHalfArray.length;
-            var upperAvgFr = upperAvg / upperHalfArray.length;
+                var lowerMaxFr = lowerMax / lowerHalfArray.length;
+                var lowerAvgFr = lowerAvg / lowerHalfArray.length;
+                var upperMaxFr = upperMax / upperHalfArray.length;
+                var upperAvgFr = upperAvg / upperHalfArray.length;
 
-            makeRoughGround(plane, modulate(upperAvgFr, 0, 1, 0.5, 4));
-            makeRoughGround(plane2, modulate(lowerMaxFr, 0, 1, 0.5, 4));
+                makeRoughGround(plane, modulate(upperAvgFr, 0, 1, 0.5, 4));
+                makeRoughGround(plane2, modulate(lowerMaxFr, 0, 1, 0.5, 4));
 
-            makeRoughBall(ball, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
+                makeRoughBall(ball, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
 
-            // Update the visualization color based on the average frequency data
-            const averageFrequency = getAverageFrequency(dataArray);
-            const newColor = new THREE.Color().setHSL(averageFrequency / 255, 1, 0.5); // Adjust color based on average frequency
-            ball.material.color.copy(newColor);
+                // Update the visualization color based on the average frequency data
+                const averageFrequency = getAverageFrequency(dataArray);
+                const newColor = new THREE.Color().setHSL(averageFrequency / 255, 1, 0.5); // Adjust color based on average frequency
+                ball.material.color.copy(newColor);
 
-            //group.rotation.y += 0.005;
+                //group.rotation.y += 0.005;
 
+                // Check if the dataArray contains non-zero values
+                const hasAudioData = dataArray.some(value => value > 0);
+
+                // Only update particle positions if there is audio data
+                if (hasAudioData) {
+                    // Update particle positions based on the audio data
+                    particleSystem.geometry.vertices.forEach((particle, i) => {
+                        var frequencyIndex = Math.floor(i * (dataArray.length / particleSystem.geometry.vertices.length));
+                        var frequencyValue = dataArray[frequencyIndex];
+                        var offset = roomCubeDimension;
+                        var amp = 0.5;
+                        var time = window.performance.now();
+                        var rf = 0.00001;
+                        var x = (Math.random() - 0.5) * offset; // Randomize position within adjusted offset
+                        var y = (Math.random() - 0.5) * offset; // Randomize position within adjusted offset
+                        var z = (Math.random() - 0.5) * offset; // Randomize position within adjusted offset
+
+                        // Adjust damping factor based on frequencyValue
+                        var dampingFactor = 1 - (frequencyValue / 255); // Lower frequency values will result in higher damping factors
+
+                        // Move particles towards the random position
+                        particle.x += (x - particle.x) * dampingFactor;
+                        particle.y += (y - particle.y) * dampingFactor;
+                        particle.z += (z - particle.z) * dampingFactor;
+
+                        // Adjust particle size based on frequencyValue
+                        var minSize = 0; // Minimum size of particles
+                        var maxSize = 10; // Maximum size of particles
+                        var particleSize = minSize + (maxSize - minSize) * (frequencyValue / 255);
+
+                        particle.size = particleSize;
+                    });
+                    particleSystem.geometry.verticesNeedUpdate = true;
+                }
+            }
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
         }
-
 
         function makeRoughBall(mesh, bassFr, treFr) {
             mesh.geometry.vertices.forEach(function (vertex, i) {
@@ -323,7 +387,6 @@
             mesh.geometry.normalsNeedUpdate = true;
             mesh.geometry.computeVertexNormals();
             mesh.geometry.computeFaceNormals();
-
         }
 
         function fractionate(val, minVal, maxVal) {
