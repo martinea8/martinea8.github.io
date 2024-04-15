@@ -18,7 +18,7 @@
 <body style="font-size: 16px;">
     <div>
         <input id="txtAudioURL" type="text" title="Audio URL"
-                value="https://martineaoun.com/3DSoundReflection/tears for fears - mad world.mp3"
+                value="https://martineaoun.com/3DSoundReflection/tears for fears - everybody wants to rule the world.mp3"
                 style="width: 100%;height: 30px;font-size: 16px !important;">
         <audio id="music" preload="auto" style="display: none" crossOrigin="anonymous">
             <source id="sourceAudio" type="audio/mpeg">
@@ -54,7 +54,7 @@
         scene.background = new THREE.Color('gainsboro');
 
         let camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight);
-        camera.position.set(0, 0, 60);
+        camera.position.set(0, 0, 70);
         camera.lookAt(scene.position);
 
         group = new THREE.Group();
@@ -196,40 +196,37 @@
                         boomBox.add(positionalAudio);
                         scene.add(boomBox);
 
-                        animate();
-
-                    });
-                    
-                    positionalAudio.play();
+                        setTimeout(() => {
+                        positionalAudio.play();
 
 
-                    var audioAnalyser = new THREE.AudioAnalyser(positionalAudio);
-                    analyser = audioAnalyser.analyser;
-                    analyser.fftSize = 1024; // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode/fftSize
-                    
-                    var bufferLength = analyser.frequencyBinCount;
-                    dataArray = new Uint8Array(bufferLength);
+                        var audioAnalyser = new THREE.AudioAnalyser(positionalAudio);
+                        analyser = audioAnalyser.analyser;
+                        analyser.fftSize = 1024; // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode/fftSize
 
-                    var planeGeometry = new THREE.PlaneGeometry(800, 800, 20, 20);
-                    var planeMaterial = new THREE.MeshLambertMaterial({
+                        var bufferLength = analyser.frequencyBinCount;
+                        dataArray = new Uint8Array(bufferLength);
+
+                        var planeGeometry = new THREE.PlaneGeometry(800, 800, 20, 20);
+                        var planeMaterial = new THREE.MeshLambertMaterial({
                         color: 0x6904ce,
                         side: THREE.DoubleSide,
                         wireframe: true,
                         opacity: 0.5
-                    });
+                        });
 
-                    plane = new THREE.Mesh(planeGeometry, planeMaterial);
-                    plane.rotation.x = -0.5 * Math.PI;
-                    plane.position.set(0, 30, 0);
-                    group.add(plane);
+                        plane = new THREE.Mesh(planeGeometry, planeMaterial);
+                        plane.rotation.x = -0.5 * Math.PI;
+                        plane.position.set(0, 30, 0);
+                        group.add(plane);
 
-                    plane2 = new THREE.Mesh(planeGeometry, planeMaterial);
-                    plane2.rotation.x = -0.5 * Math.PI;
-                    plane2.position.set(0, -30, 0);
-                    group.add(plane2);
+                        plane2 = new THREE.Mesh(planeGeometry, planeMaterial);
+                        plane2.rotation.x = -0.5 * Math.PI;
+                        plane2.position.set(0, -30, 0);
+                        group.add(plane2);
 
-                    var icosahedronGeometry = new THREE.IcosahedronGeometry(10, 4);
-                    var lambertMaterial = new THREE.MeshLambertMaterial({
+                        var icosahedronGeometry = new THREE.IcosahedronGeometry(10, 4);
+                        var lambertMaterial = new THREE.MeshLambertMaterial({
                         color: 0xff00ee,
                         wireframe: true,
                         opacity: 0.9,
@@ -237,24 +234,29 @@
                         vertexColors: true,
                         reflectivity: 1,
                         refractionRatio: 1
+                        });
+
+                        ball = new THREE.Mesh(icosahedronGeometry, lambertMaterial);
+                        ball.position.set(0, 0, 0);
+                        group.add(ball);
+
+                        var ambientLight = new THREE.AmbientLight(0xaaaaaa);
+                        scene.add(ambientLight);
+
+                        var spotLight = new THREE.SpotLight(0xffffff);
+                        spotLight.intensity = 0.9;
+                        spotLight.position.set(-10, 40, 20);
+                        spotLight.lookAt(ball);
+                        spotLight.castShadow = true;
+                        scene.add(spotLight);
+
+                        scene.add(group);
+
+                        animate();
+                        }, 1000);  
+
                     });
-
-                    ball = new THREE.Mesh(icosahedronGeometry, lambertMaterial);
-                    ball.position.set(0, 0, 0);
-                    group.add(ball);
-
-                    var ambientLight = new THREE.AmbientLight(0xaaaaaa);
-                    scene.add(ambientLight);
-
-                    var spotLight = new THREE.SpotLight(0xffffff);
-                    spotLight.intensity = 0.9;
-                    spotLight.position.set(-10, 40, 20);
-                    spotLight.lookAt(ball);
-                    spotLight.castShadow = true;
-                    scene.add(spotLight);
-
-                    scene.add(group);
-
+                    
                 }, 1000);
             });
         }
