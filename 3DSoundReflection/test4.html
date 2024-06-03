@@ -142,7 +142,7 @@
         const audioURL = document.getElementById('txtAudioURL');
 
         const overlay = document.getElementById('overlay');
-        overlay.remove();
+        overlay.hidden = true;
         audioURL.disabled = true;
 
         const listener = new THREE.AudioListener();
