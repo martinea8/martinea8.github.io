@@ -1,0 +1,724 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=0">
+    <title>3D Sound Simulation</title>
+</head>
+
+<body style="font-size: 16px;">
+    <div>
+        <input id="txtAudioURL" type="text" title="Audio URL"
+            value="https://martineaoun.com/3DSoundReflection/c3_major_scale_piano.wav"
+            style="width: 100%;height: 30px;font-size: 16px !important;">
+        <audio id="music" preload="auto" style="display: none" crossOrigin="anonymous">
+            <source id="sourceAudio" type="audio/mpeg">
+        </audio>
+        <div id="overlay">
+            <button id="startButton" style="width: 100%;height: 60px;">Play</button>
+        </div>
+        <div>
+            <input type="checkbox" id="hideBall" name="hideBall"><label for="hideBall">Hide Ball</label>
+        </div>
+    </div>
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.120.0/build/three.module.js';
+        import { OrbitControls } from 'https://unpkg.com/three@0.120.0/examples/jsm/controls/OrbitControls.js';
+        import { PositionalAudioHelper } from 'https://unpkg.com/three@0.120.0/examples/jsm/helpers/PositionalAudioHelper.js';
+        import { GLTFLoader } from 'https://unpkg.com/three@0.120.0/examples/jsm/loaders/GLTFLoader.js';
+        import { simplex } from 'https://martineaoun.com/3DSoundReflection/simplex-noise.js';
+
+        const noise = new simplex.SimplexNoise();
+
+        var roomCubeDimension = 20;
+        var boomBoxPositionX = 0;
+        var boomBoxPositionY = -(roomCubeDimension / 2) + 1;
+        var boomBoxPositionZ = 0;
+
+        let analyser;
+        let dataArray;
+        let group;
+        var icosahedronGeometry = new THREE.IcosahedronGeometry(10, 4);
+        var lambertMaterial = new THREE.MeshLambertMaterial({
+            color: 'white',
+            wireframe: true,
+            opacity: 0.9,
+            side: THREE.DoubleSide,
+            vertexColors: true,
+            reflectivity: 1,
+            refractionRatio: 1
+        });
+        let ball = new THREE.Mesh(icosahedronGeometry, lambertMaterial);
+        let positionalAudio;
+        let particleSystem; // Variable to hold the particle system
+        let rays = []; // Array to hold the rays
+        let isSoundPlaying = false;
+
+
+        // Initialize Three.js scene, camera, and renderer
+        let scene = new THREE.Scene();
+        scene.background = new THREE.Color('gainsboro');
+
+        let camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight);
+        camera.position.set(0, 0, 70);
+        camera.lookAt(scene.position);
+
+        group = new THREE.Group();
+
+        var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setAnimationLoop(animationLoop);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        window.addEventListener('resize', onWindowResize);
+
+        var controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        var light = new THREE.DirectionalLight('white', 1);
+        light.position.set(1, 1, 1);
+        scene.add(light);
+
+        // Create a grid helper
+        let gridHelper = new THREE.GridHelper(roomCubeDimension, roomCubeDimension, 0xc1c1c1, 0xc1c1c1);
+        var gridHelperPositionX = 0;
+        var gridHelperPositionY = -roomCubeDimension / 2;
+        var gridHelperPositionZ = 0;
+
+        gridHelper.position.set(gridHelperPositionX, gridHelperPositionY, gridHelperPositionZ);
+        // Add the grid helper to the scene
+        scene.add(gridHelper);
+
+        var geometry = new THREE.BoxGeometry(roomCubeDimension, roomCubeDimension, 0.4),
+            material = new THREE.MeshLambertMaterial({ color: 'white', transparent: true });
+
+        var wall1 = new THREE.Mesh(geometry, material.clone());
+        wall1.position.z = roomCubeDimension / 2;
+
+        var wall2 = new THREE.Mesh(geometry, material.clone());
+        wall2.rotation.y = Math.PI;
+        wall2.position.z = -roomCubeDimension / 2;
+
+        var wall3 = new THREE.Mesh(geometry, material.clone());
+        wall3.rotation.y = Math.PI / 2;
+        wall3.position.x = roomCubeDimension / 2;
+
+        var wall4 = new THREE.Mesh(geometry, material.clone());
+        wall4.rotation.y = -Math.PI / 2;
+        wall4.position.x = -roomCubeDimension / 2;
+
+        var wall5 = new THREE.Mesh(geometry, material.clone());
+        wall5.rotation.x = Math.PI / 2;
+        wall5.position.y = -roomCubeDimension / 2;
+
+        var wall6 = new THREE.Mesh(geometry, material.clone());
+        wall6.rotation.x = -Math.PI / 2;
+        wall6.position.y = roomCubeDimension / 2;
+
+        var walls = [wall1, wall2, wall3, wall4, wall5, wall6];
+
+        scene.add(...walls);
+
+        var v = new THREE.Vector3(),
+            u = new THREE.Vector3();
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        const hideBallCheckbox = document.getElementById("hideBall");
+
+        hideBallCheckbox.addEventListener("change", () => {
+            if (hideBallCheckbox.checked) {
+                ball.visible = false;
+            } else {
+                ball.visible = true;
+            }
+        });
+
+        function animationLoop(t) {
+            controls.update();
+
+            for (var wall of walls) {
+                wall.getWorldDirection(v);
+                camera.getWorldDirection(u);
+
+                wall.material.opacity = 2 * v.dot(u); 		// soft
+                //wall.visible = v.dot(u) > 0; 					// hard
+            }
+
+            //light.position.copy(camera.position);
+            renderer.render(scene, camera);
+        }
+
+        const startButton = document.getElementById('startButton');
+        startButton.addEventListener('click', init);
+
+        function init() {
+
+            const sourceAudio = document.getElementById('sourceAudio');
+            const audioURL = document.getElementById('txtAudioURL');
+
+            const overlay = document.getElementById('overlay');
+            overlay.hidden = true;
+            audioURL.disabled = true;
+
+            const listener = new THREE.AudioListener();
+            camera.add(listener);
+
+            sourceAudio.src = audioURL.value;
+
+            positionalAudio = new THREE.PositionalAudio(listener);
+
+            var distanceValue = roomCubeDimension;
+            var coneInnerAngle = 180;
+            var coneOuterAngle = 360;
+            var coneOuterGain = 0.1;
+            var range = 0.1;
+            const helper = new PositionalAudioHelper(positionalAudio, range);
+
+            const loader = new THREE.AudioLoader();
+            loader.load(audioURL.value, (buffer) => {
+                setTimeout(() => {
+                    positionalAudio.setBuffer(buffer);
+                    //positionalAudio.setLoop(false);
+                    positionalAudio.setVolume(1.0);
+                    positionalAudio.setRefDistance(distanceValue); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect.
+                    positionalAudio.setDirectionalCone(coneInnerAngle, coneOuterAngle, coneOuterGain);
+                    positionalAudio.add(helper);
+
+                    const gltfLoader = new GLTFLoader();
+                    gltfLoader.load('https://martineaoun.com/3DSoundReflection/BoomBox.glb', function (gltf) {
+
+                        const boomBox = gltf.scene;
+
+                        boomBox.position.set(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ); // Position at the center of the room
+
+                        var boomBoxScale = 100;
+                        boomBox.scale.set(boomBoxScale, boomBoxScale, boomBoxScale);
+                        boomBox.traverse(function (object) {
+
+                            if (object.isMesh) {
+                                object.material.envMap = scene;
+                                object.geometry.rotateY(- Math.PI);
+                                object.castShadow = true;
+                            }
+
+                        });
+
+                        boomBox.add(positionalAudio);
+                        scene.add(boomBox);
+
+                        createRays(); // Create the rays here
+
+                        setTimeout(() => {
+                            positionalAudio.play();
+                            isSoundPlaying = true;
+
+                            // // Stop the animation loop when the sound finishes
+                            // positionalAudio.onEnded = function () {
+                            //     isSoundPlaying = false;
+                            // };
+
+                            var audioAnalyser = new THREE.AudioAnalyser(positionalAudio);
+                            analyser = audioAnalyser.analyser;
+                            analyser.fftSize = 2048; // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode/fftSize
+
+                            var bufferLength = analyser.frequencyBinCount;
+                            dataArray = new Uint8Array(bufferLength);
+
+
+
+                            ball.position.set(0, 0, 0);
+                            group.add(ball);
+
+                            var ambientLight = new THREE.AmbientLight(0xaaaaaa);
+                            scene.add(ambientLight);
+
+                            var spotLight = new THREE.SpotLight(0xffffff);
+                            spotLight.intensity = 0.9;
+                            spotLight.position.set(-roomCubeDimension / 2, roomCubeDimension * 2, roomCubeDimension);
+                            spotLight.lookAt(ball);
+                            spotLight.castShadow = true;
+                            scene.add(spotLight);
+
+                            scene.add(group);
+
+                            var particleCount = 1000;
+                            var particles = new THREE.Geometry();
+                            var bufferSpace = 5; // Add buffer space between particles and room boundaries
+
+                            for (var p = 0; p < particleCount; p++) {
+                                var x = (Math.random() - 0.5) * (roomCubeDimension - bufferSpace * 2); // Spread particles uniformly within room width with buffer space
+                                var y = (Math.random() - 0.5) * (roomCubeDimension - bufferSpace * 2); // Spread particles uniformly within room height with buffer space
+                                var z = (Math.random() - 0.5) * (roomCubeDimension - bufferSpace * 2); // Spread particles uniformly within room depth with buffer space
+
+                                var particle = new THREE.Vector3(x, y, z);
+
+                                particles.vertices.push(particle);
+                            }
+
+                            var particleMaterial = new THREE.PointsMaterial({
+                                color: 'red',
+                                size: 0.2
+                            });
+
+                            particleSystem = new THREE.Points(particles, particleMaterial);
+                            scene.add(particleSystem);
+
+                            animate();
+
+                        }, 1000);
+
+                    });
+
+                }, 1000);
+            });
+        }
+
+        // Smoothing function to apply to frequency data
+        function smooth(data, factor) {
+            for (let i = 0; i < data.length - 1; i++) {
+                data[i] = (1 - factor) * data[i] + factor * data[i + 1];
+            }
+            return data;
+        }
+
+        function yinPitchDetection(data, sampleRate) {
+            const yinBuffer = new Float32Array(data.length / 2);
+            const threshold = 0.1;
+            let probability = 0;
+            let tau;
+
+            for (let t = 0; t < yinBuffer.length; t++) {
+                yinBuffer[t] = 0;
+            }
+
+            for (let t = 1; t < yinBuffer.length; t++) {
+                for (let i = 0; i < yinBuffer.length; i++) {
+                    const delta = data[i] - data[i + t];
+                    yinBuffer[t] += delta * delta;
+                }
+            }
+
+            yinBuffer[0] = 1;
+            let runningSum = 0;
+            for (let t = 1; t < yinBuffer.length; t++) {
+                runningSum += yinBuffer[t];
+                yinBuffer[t] *= t / runningSum;
+            }
+
+            for (tau = 2; tau < yinBuffer.length; tau++) {
+                if (yinBuffer[tau] < threshold) {
+                    while (tau + 1 < yinBuffer.length && yinBuffer[tau + 1] < yinBuffer[tau]) {
+                        tau++;
+                    }
+                    probability = 1 - yinBuffer[tau];
+                    break;
+                }
+            }
+
+            if (tau === yinBuffer.length || yinBuffer[tau] >= threshold) {
+                return -1;
+            }
+
+            const betterTau = (tau - 1) + (yinBuffer[tau - 1] - yinBuffer[tau + 1]) / (2 * (2 * yinBuffer[tau] - yinBuffer[tau - 1] - yinBuffer[tau + 1]));
+            return sampleRate / betterTau;
+        }
+
+        // Render loop
+        function animate() {
+            isSoundPlaying = positionalAudio.isPlaying;
+
+            analyser.getByteTimeDomainData(dataArray);
+
+            const dominantFrequency = getDominantFrequency(dataArray);
+            const noteName = frequencyToNote(dominantFrequency);
+            const color = noteToColor(noteName);
+            //ball.material.color.setHex(color);
+
+            analyser.getByteFrequencyData(dataArray);
+
+            //  // Verify dataArray values
+            //  console.log(dataArray);
+
+            const averageFrequency = getAverageFrequency(dataArray);
+            const newColor = new THREE.Color().setHSL(averageFrequency / 255, 1, 0.5); // Adjust color based on average frequency
+            ball.material.color.copy(newColor);
+
+            console.log("Average Freq: " + averageFrequency + " ; Dominant Freq: " + dominantFrequency + " ; Note: " + noteName + " ; Color: " + color);
+
+            var lowerHalfArray = dataArray.slice(0, (dataArray.length / 2) - 1);
+            var upperHalfArray = dataArray.slice((dataArray.length / 2) - 1, dataArray.length - 1);
+
+            var overallAvg = avg(dataArray);
+            var lowerMax = max(lowerHalfArray);
+            var lowerAvg = avg(lowerHalfArray);
+            var upperMax = max(upperHalfArray);
+            var upperAvg = avg(upperHalfArray);
+
+            var lowerMaxFr = lowerMax / lowerHalfArray.length;
+            var lowerAvgFr = lowerAvg / lowerHalfArray.length;
+            var upperMaxFr = upperMax / upperHalfArray.length;
+            var upperAvgFr = upperAvg / upperHalfArray.length;
+
+            //makeRoughGround(plane, modulate(upperAvgFr, 0, 1, 0.5, 4));
+            //makeRoughGround(plane2, modulate(lowerMaxFr, 0, 1, 0.5, 4));
+            makeRoughBall(ball, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
+
+            const hasAudioData = (averageFrequency > 0);
+
+            if (rays.length > 0) {
+                rays.forEach(ray => {
+                    if (ray.line) {
+                        ray.line.visible = hasAudioData;
+                    }
+                    ray.visible = hasAudioData;
+                });
+            }
+            if (hasAudioData) {
+                //animateRays();
+                particleSystem.geometry.vertices.forEach((particle, i) => {
+                    var frequencyIndex = Math.floor(i * (dataArray.length / particleSystem.geometry.vertices.length));
+                    var frequencyValue = dataArray[frequencyIndex];
+                    var offset = roomCubeDimension;
+                    var amp = 0.5;
+                    var time = window.performance.now();
+                    var rf = 0.00001;
+                    var x = (Math.random() - 0.5) * offset;
+                    var y = (Math.random() - 0.5) * offset;
+                    var z = (Math.random() - 0.5) * offset;
+                    var dampingFactor = 1 - (frequencyValue / 255);
+                    particle.x += (x - particle.x) * dampingFactor;
+                    particle.y += (y - particle.y) * dampingFactor;
+                    particle.z += (z - particle.z) * dampingFactor;
+                    var minSize = 0;
+                    var maxSize = 10;
+                    var particleSize = minSize + (maxSize - minSize) * (frequencyValue / 255);
+                    particle.size = particleSize;
+                });
+                particleSystem.geometry.verticesNeedUpdate = true;
+                updateRays(color, dataArray);
+            }
+
+            renderer.render(scene, camera);
+
+            if (isSoundPlaying) {
+                requestAnimationFrame(animate);
+            } else {
+                particleSystem.visible = false;
+            }
+        }
+
+
+        function makeRoughBall(mesh, bassFr, treFr) {
+            mesh.geometry.vertices.forEach(function (vertex, i) {
+                var offset = mesh.geometry.parameters.radius;
+                var amp = 7;
+                var time = window.performance.now();
+                vertex.normalize();
+                var rf = 0.00001;
+                var distance = (offset + bassFr) + noise.noise3D(vertex.x + time * rf * 7, vertex.y + time * rf * 8, vertex.z + time * rf * 9) * amp * treFr;
+                vertex.multiplyScalar(distance);
+            });
+            mesh.geometry.verticesNeedUpdate = true;
+            mesh.geometry.normalsNeedUpdate = true;
+            mesh.geometry.computeVertexNormals();
+            mesh.geometry.computeFaceNormals();
+        }
+
+        function makeRoughGround(mesh, distortionFr) {
+            mesh.geometry.vertices.forEach(function (vertex, i) {
+                var amp = 2;
+                var time = Date.now();
+                var distance = (noise.noise2D(vertex.x + time * 0.0003, vertex.y + time * 0.0001) + 0) * distortionFr * amp;
+                vertex.z = distance;
+            });
+            mesh.geometry.verticesNeedUpdate = true;
+            mesh.geometry.normalsNeedUpdate = true;
+            mesh.geometry.computeVertexNormals();
+            mesh.geometry.computeFaceNormals();
+        }
+
+        function fractionate(val, minVal, maxVal) {
+            return (val - minVal) / (maxVal - minVal);
+        }
+
+        function modulate(val, minVal, maxVal, outMin, outMax) {
+            var fr = fractionate(val, minVal, maxVal);
+            var delta = outMax - outMin;
+            return outMin + (fr * delta);
+        }
+
+        function avg(arr) {
+            var total = arr.reduce(function (sum, b) { return sum + b; });
+            return (total / arr.length);
+        }
+
+        function max(arr) {
+            return arr.reduce(function (a, b) { return Math.max(a, b); })
+        }
+
+        // Function to calculate the average frequency from frequency data
+        function getAverageFrequency(frequencyData) {
+            let sum = 0;
+            for (let i = 0; i < frequencyData.length; i++) {
+                sum += frequencyData[i];
+            }
+            return sum / frequencyData.length;
+        }
+
+        // Function to get the dominant frequency from the frequency data
+        function getDominantFrequency(dataArray) {
+            const sampleRate = analyser.context.sampleRate;
+            const frequency = yinPitchDetection(dataArray, sampleRate);
+            return frequency > 0 ? frequency : 0;
+        }
+
+        // Function to map frequency to musical note
+        function frequencyToNote(frequency) {
+            const A4 = 440;
+            const C0 = A4 * Math.pow(2, -4.75);
+            const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+            let h = Math.round(12 * Math.log2(frequency / C0));
+            let octave = Math.floor(h / 12);
+            let note = h % 12;
+            console.log(noteNames[note] + octave);
+            return noteNames[note] + octave;
+        }
+
+        // Function to map musical note to color
+        function noteToColor(note) {
+            var color;
+            if (note) {
+                const noteColors = {
+                    'C': '0xff0000',   // Red
+                    'C#': '0xff4500',  // OrangeRed
+                    'D': '0xff7f00',   // Orange
+                    'D#': '0xffa500',  // Orange
+                    'E': '0xffff00',   // Yellow
+                    'F': '0x00ff00',   // Green
+                    'F#': '0x32cd32',  // LimeGreen
+                    'G': '0x0000ff',   // Blue
+                    'G#': '0x4169e1',  // RoyalBlue
+                    'A': '0x4b0082',   // Indigo
+                    'A#': '0x9932cc',  // DarkOrchid
+                    'B': '0x9400d3',   // Violet
+                };
+
+                // Calculate the reference frequency of A4 (440 Hz)
+                const A4 = 440;
+
+                // Calculate the position of the note relative to A4
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                const octave = parseInt(note.slice(-1)); // Extract octave from note string
+                const noteWithoutOctave = note.slice(0, -1);
+                const distanceFromA4 = (noteNames.indexOf(noteWithoutOctave) - 9) + (octave - 4) * 12;
+
+                // Calculate color based on distance from A4
+                let colorIndex = Math.abs(distanceFromA4) % 12;
+                if (colorIndex < 0) colorIndex = 12 + colorIndex; // Ensure positive index
+
+                // Retrieve color from noteColors or default to white
+                color = noteColors[noteWithoutOctave] || '0xffffff';
+            }
+            else {
+                color = '0xffffff';
+            }
+            // Return the color
+            return color;
+        }
+
+        function reflectVector(incident, normal) {
+            return incident.sub(normal.multiplyScalar(2 * incident.dot(normal)));
+        }
+
+        function createRays() {
+            // Define the ray properties
+            var rayLength; // Set to the room dimension to ensure it reaches the walls
+            const rayMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+            // Create one ray for each wall
+            walls.forEach((wall, index) => {
+                if (index == 5) {
+                    rayLength = roomCubeDimension - 1;
+                }
+                else {
+                    rayLength = (roomCubeDimension / 2) * Math.sqrt(2);
+                }
+                // Skip creating the ray for the bottom wall (parallel to the floor)
+                if (index === 4 || index === 0) {
+                    return;
+                }
+                const geometry = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, 0, 0),
+                    new THREE.Vector3(0, 0, rayLength)
+                ]);
+
+                const line = new THREE.Line(geometry, rayMaterial);
+                rays.push({ line, wall, incidentAngle: Math.PI / 4 }); // Start with an incident angle of 45 degrees
+                scene.add(line);
+            });
+        }
+
+        // function animateRays() {
+
+        //     analyser.getByteFrequencyData(dataArray);
+        //     const amplitude = avg(dataArray) / 255;
+
+        //     rays.forEach(rayObj => {
+        //         const { line, wall } = rayObj;
+        //         if (wall) {
+        //             const normal = wall.getWorldDirection(new THREE.Vector3());
+        //             const incidentDirection = new THREE.Vector3(0, 0, 1).applyAxisAngle(
+        //                 new THREE.Vector3(0, 1, 0),
+        //                 rayObj.incidentAngle
+        //             );
+        //             const reflectedDirection = reflectVector(incidentDirection.clone(), normal.clone());
+
+        //             const startPoint = wall.position.clone().add(normal.clone().multiplyScalar(0.2));
+        //             const endPoint = startPoint.clone().add(reflectedDirection.clone().multiplyScalar(roomCubeDimension));
+
+        //             line.geometry.setFromPoints([startPoint, endPoint]);
+
+        //             // Animate the incident angle based on amplitude
+        //             rayObj.incidentAngle = (Math.PI / 4) + (amplitude * Math.PI / 8); // Adjusting the incident angle
+        //         }
+        //     });
+        // }
+
+
+        function updateRays(color, dataArray) {
+            var rayLength;
+            const amplitude = avg(dataArray) / 255;
+
+            rays.forEach((ray, index) => {
+                const wall = walls[index];
+                if (wall) {
+
+                    const boomboxPosition = new THREE.Vector3(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ);
+                    const wallPosition = wall.position;
+                    const direction = new THREE.Vector3().subVectors(wallPosition, boomboxPosition).normalize();
+
+                    if (index == 5) {
+                        rayLength = roomCubeDimension - 1;
+                    }
+                    else {
+                        if (index == 4) {
+                            // Skip the bottom wall ray
+                            return;
+                        }
+                        else {
+                            rayLength = (roomCubeDimension / 2) * Math.sqrt(2);
+                            ray.line.material.color.setHex(color);
+                            // Adjust thickness based on amplitude
+                            const thickness = calculateThickness(amplitude);
+                            ray.line.material.linewidth = thickness;
+                            ray.line.geometry.computeBoundingSphere(); // Update bounding sphere for ray
+                        }
+
+                    }
+
+                    const startPoint = boomboxPosition.clone();
+                    const endPoint = startPoint.clone().add(direction.multiplyScalar(rayLength));
+
+                    const positions = ray.line ? ray.line.geometry.attributes.position.array : ray.geometry.attributes.position.array;
+                    positions[0] = startPoint.x;
+                    positions[1] = startPoint.y;
+                    positions[2] = startPoint.z;
+                    positions[3] = endPoint.x;
+                    positions[4] = endPoint.y;
+                    positions[5] = endPoint.z;
+                    if (ray.line) {
+                        ray.line.geometry.attributes.position.needsUpdate = true;
+                    }
+                    else {
+                        ray.geometry.attributes.position.needsUpdate = true;
+                    }
+
+                    reflectRay(ray, color, amplitude);
+
+                }
+            });
+        }
+
+        function reflectRay(ray, color, amplitude) {
+
+            // Get the last point of the current ray
+            const points = ray.line ? ray.line.geometry.attributes.position.array : ray.geometry.attributes.position.array;
+            const lastPoint = new THREE.Vector3(points[3], points[4], points[5]);
+
+            // Find the closest wall and calculate the normal vector
+            let closestWall = null;
+            let closestDistance = Infinity;
+            let wallNormal = new THREE.Vector3();
+
+            walls.forEach((wall) => {
+                const wallDistance = wall.position.distanceTo(lastPoint);
+                if (wallDistance < closestDistance) {
+                    closestDistance = wallDistance;
+                    closestWall = wall;
+                    closestWall.getWorldDirection(wallNormal).negate(); // Get the normal direction of the wall
+                }
+            });
+
+            // Calculate the direction vector of the ray
+            const startPoint = new THREE.Vector3(points[0], points[1], points[2]);
+            const rayDirection = new THREE.Vector3().subVectors(lastPoint, startPoint).normalize();
+
+            // Calculate the reflection direction
+            const dotProduct = rayDirection.dot(wallNormal);
+            const reflectionDirection = new THREE.Vector3()
+                .copy(rayDirection)
+                .sub(wallNormal.multiplyScalar(2 * dotProduct))
+                .normalize();
+
+            // Calculate the new end point based on the reflection direction
+            if (ray.line) {
+                ray.line.computeLineDistances()
+            }
+            else {
+                ray.computeLineDistances()
+            }
+
+            let ld = ray.line ? ray.line.geometry.getAttribute("lineDistance") : ray.geometry.getAttribute("lineDistance");
+            const length = ld.getX(ld.count - 1);
+            const reflectedEndPoint = new THREE.Vector3()
+                .copy(lastPoint)
+                .add(reflectionDirection.multiplyScalar(length));
+
+            // Create the new reflected ray
+            const reflectedRayGeometry = new THREE.BufferGeometry();
+            reflectedRayGeometry.setFromPoints([lastPoint, reflectedEndPoint]);
+            const reflectedRay = new THREE.Line(reflectedRayGeometry, ray.material);
+            reflectedRay.material.color.setHex(color);
+            const intensity = Math.max(0.5, amplitude); // Minimum intensity
+            reflectedRay.material.opacity = intensity;
+            if (reflectedRay.line) {
+                reflectedRay.line.visible = (color != '0xffffff');
+            }
+            reflectedRay.visible = (color != '0xffffff');
+            rays.push(reflectedRay);
+            scene.add(reflectedRay);
+
+        }
+
+        function calculateThickness(amplitude) {
+            // Define the minimum and maximum thickness values for the rays
+            const minThickness = 1; // Minimum thickness
+            const maxThickness = 10; // Maximum thickness
+
+            // Map the range of possible amplitude values to the range of thickness values
+            // You might need to adjust this mapping based on the characteristics of your data
+            const mappedThickness = minThickness + (amplitude * (maxThickness - minThickness));
+
+            return mappedThickness;
+        }
+    </script>
+</body>
+
+</html>
