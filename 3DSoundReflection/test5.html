@@ -37,17 +37,19 @@
         var boomBoxPositionZ = 0;
 
         let analyser;
+        let analyserAmp;
         let dataArray;
+        let dataArrayAmp;
         let group;
         var icosahedronGeometry = new THREE.IcosahedronGeometry(10, 4);
         var lambertMaterial = new THREE.MeshLambertMaterial({
             color: 'white',
             wireframe: true,
-            opacity: 0.9,
-            side: THREE.DoubleSide,
-            vertexColors: true,
+            opacity: 0.6,
+            side: THREE.FrontSide,
+            vertexColors: false,
             reflectivity: 1,
-            refractionRatio: 1
+            refractionRatio: 0.98
         });
         let ball = new THREE.Mesh(icosahedronGeometry, lambertMaterial);
         let positionalAudio;
@@ -226,12 +228,15 @@
 
                             var audioAnalyser = new THREE.AudioAnalyser(positionalAudio);
                             analyser = audioAnalyser.analyser;
-                            analyser.fftSize = 2048; // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode/fftSize
+                            analyser.fftSize = 8192; // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode/fftSize
+                            var audioAnalyserAmp = new THREE.AudioAnalyser(positionalAudio);
+                            analyserAmp = audioAnalyserAmp.analyser;
+                            analyserAmp.fftSize = 512;
 
                             var bufferLength = analyser.frequencyBinCount;
                             dataArray = new Uint8Array(bufferLength);
-
-
+                            bufferLength = analyserAmp.frequencyBinCount;
+                            dataArrayAmp = new Uint8Array(bufferLength);
 
                             ball.position.set(0, 0, 0);
                             group.add(ball);
@@ -341,21 +346,23 @@
             const color = noteToColor(noteName);
             //ball.material.color.setHex(color);
 
-            analyser.getByteFrequencyData(dataArray);
+            if (dataArrayAmp) {
+                analyserAmp.getByteFrequencyData(dataArrayAmp);
+            }
 
             //  // Verify dataArray values
             //  console.log(dataArray);
 
-            const averageFrequency = getAverageFrequency(dataArray);
+            const averageFrequency = getAverageFrequency(dataArrayAmp);
             const newColor = new THREE.Color().setHSL(averageFrequency / 255, 1, 0.5); // Adjust color based on average frequency
             ball.material.color.copy(newColor);
 
             console.log("Average Freq: " + averageFrequency + " ; Dominant Freq: " + dominantFrequency + " ; Note: " + noteName + " ; Color: " + color);
 
-            var lowerHalfArray = dataArray.slice(0, (dataArray.length / 2) - 1);
-            var upperHalfArray = dataArray.slice((dataArray.length / 2) - 1, dataArray.length - 1);
+            var lowerHalfArray = dataArrayAmp.slice(0, (dataArrayAmp.length / 2) - 1);
+            var upperHalfArray = dataArrayAmp.slice((dataArrayAmp.length / 2) - 1, dataArrayAmp.length - 1);
 
-            var overallAvg = avg(dataArray);
+            var overallAvg = avg(dataArrayAmp);
             var lowerMax = max(lowerHalfArray);
             var lowerAvg = avg(lowerHalfArray);
             var upperMax = max(upperHalfArray);
@@ -380,29 +387,34 @@
                     ray.visible = hasAudioData;
                 });
             }
+
             if (hasAudioData) {
                 //animateRays();
                 particleSystem.geometry.vertices.forEach((particle, i) => {
-                    var frequencyIndex = Math.floor(i * (dataArray.length / particleSystem.geometry.vertices.length));
-                    var frequencyValue = dataArray[frequencyIndex];
-                    var offset = roomCubeDimension;
+                    var frequencyIndex = Math.floor(i * (dataArrayAmp.length / particleSystem.geometry.vertices.length));
+                    var frequencyValue = dataArrayAmp[frequencyIndex];
+                    var offset = roomCubeDimension / 2;
                     var amp = 0.5;
-                    var time = window.performance.now();
-                    var rf = 0.00001;
-                    var x = (Math.random() - 0.5) * offset;
-                    var y = (Math.random() - 0.5) * offset;
-                    var z = (Math.random() - 0.5) * offset;
                     var dampingFactor = 1 - (frequencyValue / 255);
-                    particle.x += (x - particle.x) * dampingFactor;
-                    particle.y += (y - particle.y) * dampingFactor;
-                    particle.z += (z - particle.z) * dampingFactor;
-                    var minSize = 0;
-                    var maxSize = 10;
-                    var particleSize = minSize + (maxSize - minSize) * (frequencyValue / 255);
-                    particle.size = particleSize;
+                    var x = particle.x + noise.noise3D(particle.x, particle.y, dampingFactor) * amp;
+                    var y = particle.y + noise.noise3D(particle.y, particle.z, dampingFactor) * amp;
+                    var z = particle.z + noise.noise3D(particle.z, particle.x, dampingFactor) * amp;
+
+                    // Keep particles within the room dimensions
+                    x = THREE.MathUtils.clamp(x, -offset, offset);
+                    y = THREE.MathUtils.clamp(y, -offset, offset);
+                    z = THREE.MathUtils.clamp(z, -offset, offset);
+
+                    particle.set(x, y, z);
                 });
                 particleSystem.geometry.verticesNeedUpdate = true;
-                updateRays(color, dataArray);
+
+                // Update particle size based on amplitude
+                var particleMaterial = particleSystem.material;
+                var size = modulate(overallAvg, 0, 255, 0.1, 2);
+                particleMaterial.size = size;
+
+                updateRays(color, dataArrayAmp);
             }
 
             renderer.render(scene, camera);
@@ -413,7 +425,6 @@
                 particleSystem.visible = false;
             }
         }
-
 
         function makeRoughBall(mesh, bassFr, treFr) {
             mesh.geometry.vertices.forEach(function (vertex, i) {
@@ -494,44 +505,32 @@
 
         // Function to map musical note to color
         function noteToColor(note) {
-            var color;
+            const noteColors = {
+                'C': '0xff0000',   // Red
+                'C#': '0xff4500',  // OrangeRed
+                'D': '0xff7f00',   // Orange
+                'D#': '0xffa500',  // Orange
+                'E': '0xffff00',   // Yellow
+                'F': '0x00ff00',   // Green
+                'F#': '0x32cd32',  // LimeGreen
+                'G': '0x0000ff',   // Blue
+                'G#': '0x4169e1',  // RoyalBlue
+                'A': '0x4b0082',   // Indigo
+                'A#': '0x9932cc',  // DarkOrchid
+                'B': '0x9400d3',   // Violet
+            };
+
             if (note) {
-                const noteColors = {
-                    'C': '0xff0000',   // Red
-                    'C#': '0xff4500',  // OrangeRed
-                    'D': '0xff7f00',   // Orange
-                    'D#': '0xffa500',  // Orange
-                    'E': '0xffff00',   // Yellow
-                    'F': '0x00ff00',   // Green
-                    'F#': '0x32cd32',  // LimeGreen
-                    'G': '0x0000ff',   // Blue
-                    'G#': '0x4169e1',  // RoyalBlue
-                    'A': '0x4b0082',   // Indigo
-                    'A#': '0x9932cc',  // DarkOrchid
-                    'B': '0x9400d3',   // Violet
-                };
-
-                // Calculate the reference frequency of A4 (440 Hz)
-                const A4 = 440;
-
-                // Calculate the position of the note relative to A4
                 const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-                const octave = parseInt(note.slice(-1)); // Extract octave from note string
-                const noteWithoutOctave = note.slice(0, -1);
-                const distanceFromA4 = (noteNames.indexOf(noteWithoutOctave) - 9) + (octave - 4) * 12;
+                const noteWithoutOctave = note.slice(0, -1); // Extract note without octave
 
-                // Calculate color based on distance from A4
-                let colorIndex = Math.abs(distanceFromA4) % 12;
-                if (colorIndex < 0) colorIndex = 12 + colorIndex; // Ensure positive index
+                if (noteColors.hasOwnProperty(noteWithoutOctave)) {
+                    return noteColors[noteWithoutOctave];
+                }
+            }
 
-                // Retrieve color from noteColors or default to white
-                color = noteColors[noteWithoutOctave] || '0xffffff';
-            }
-            else {
-                color = '0xffffff';
-            }
-            // Return the color
-            return color;
+            // Default to white if the note is not found in noteColors
+            return '0xffffff';
         }
 
         function reflectVector(incident, normal) {
@@ -592,9 +591,9 @@
         // }
 
 
-        function updateRays(color, dataArray) {
+        function updateRays(color, dataArrayAmp) {
             var rayLength;
-            const amplitude = avg(dataArray) / 255;
+            const amplitude = avg(dataArrayAmp) / 255;
 
             rays.forEach((ray, index) => {
                 const wall = walls[index];
@@ -696,7 +695,7 @@
             reflectedRayGeometry.setFromPoints([lastPoint, reflectedEndPoint]);
             const reflectedRay = new THREE.Line(reflectedRayGeometry, ray.material);
             reflectedRay.material.color.setHex(color);
-            const intensity = Math.max(0.5, amplitude); // Minimum intensity
+            const intensity = Math.max(0.6, amplitude); // Minimum intensity
             reflectedRay.material.opacity = intensity;
             if (reflectedRay.line) {
                 reflectedRay.line.visible = (color != '0xffffff');
