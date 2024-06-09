@@ -457,6 +457,7 @@
                 audioURL.disabled = false;
                 lblAudioFile.hidden = false;
                 rays = [];
+                lblNote.innerHTML = '';
             }
         }
 
@@ -581,6 +582,7 @@
                 ]);
 
                 const line = new THREE.Line(geometry, rayMaterial);
+                line.visible = false;
                 rays.push({ line, wall, incidentAngle: Math.PI / 4 }); // Start with an incident angle of 45 degrees
                 scene.add(line);
             });
