@@ -1,0 +1,206 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Wave Simulation</title>
+    <!-- Import Three.js library -->
+    <script type="importmap">
+        {
+        "imports": {
+        "three": "https://unpkg.com/three@0.141.0/build/three.module.js"
+        }
+        }
+    </script>
+</head>
+<body>
+    <div>
+        <label>Audio URL: <input id="txtAudioURL" type="text" value="https://martineaoun.com/3DSoundReflection/tears for fears - mad world.mp3" style="width: 500px;"></label>
+        <audio id="music" preload="auto" style="display: none" crossOrigin="anonymous">
+            <source id="sourceAudio" type="audio/mpeg">
+        </audio>
+    </div>
+    <div id="overlay">
+        <button id="startButton">Play</button>
+    </div>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'https://unpkg.com/three@0.141.0/examples/jsm/controls/OrbitControls.js';
+        import { PositionalAudioHelper } from 'https://unpkg.com/three@0.141.0/examples/jsm/helpers/PositionalAudioHelper.js';
+        import { GLTFLoader } from 'https://unpkg.com/three@0.141.0/examples/jsm/loaders/GLTFLoader.js';
+
+        // Simulation parameters - To add
+
+
+        let analyser;
+        let mesh;
+
+        // Initialize Three.js scene, camera, and renderer
+        let scene = new THREE.Scene();
+        scene.background = new THREE.Color( 'gainsboro' );
+
+        let camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight);
+        camera.position.set( 0, 0, 60 );
+        camera.lookAt( scene.position );
+
+        var renderer = new THREE.WebGLRenderer( { antialias: true } );
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setAnimationLoop( animationLoop );
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        window.addEventListener( 'resize', onWindowResize );
+
+        var controls = new OrbitControls( camera, renderer.domElement );
+        controls.enableDamping = true;
+
+        var light = new THREE.DirectionalLight( 'white', 3 );
+        light.position.set( 1, 1, 1 );
+        scene.add( light );
+
+        // Create a grid helper with size 20 and divisions 20
+        let gridHelper = new THREE.GridHelper(20, 20, 0xc1c1c1, 0xc1c1c1 );
+        var gridHelperPositionX = 0;
+        var gridHelperPositionY = -10;
+        var gridHelperPositionZ = 0;
+
+        gridHelper.position.set(gridHelperPositionX,gridHelperPositionY, gridHelperPositionZ);
+        // Add the grid helper to the scene
+        scene.add(gridHelper);
+
+        var geometry = new THREE.BoxGeometry(20, 20, 0.4),
+        material = new THREE.MeshLambertMaterial( {color:'royalblue', transparent: true} );
+
+        var wall1 = new THREE.Mesh( geometry, material.clone() );
+        wall1.position.z = 10;
+
+        var wall2 = new THREE.Mesh( geometry, material.clone() );
+        wall2.rotation.y = Math.PI;
+        wall2.position.z = -10;
+
+        var wall3 = new THREE.Mesh( geometry, material.clone() );
+        wall3.rotation.y = Math.PI/2;
+        wall3.position.x = 10;
+
+        var wall4 = new THREE.Mesh( geometry, material.clone() );
+        wall4.rotation.y = -Math.PI/2;
+        wall4.position.x = -10;
+
+        var wall5 = new THREE.Mesh( geometry, material.clone() );
+        wall5.rotation.x = Math.PI/2;
+        wall5.position.y = -10;
+
+        var wall6 = new THREE.Mesh( geometry, material.clone() );
+        wall6.rotation.x = -Math.PI/2;
+        wall6.position.y = 10;
+
+        var walls = [wall1, wall2, wall3, wall4, wall5, wall6];
+
+        scene.add( ...walls );
+
+        var v = new THREE.Vector3( ),
+        u = new THREE.Vector3( );
+
+        function onWindowResize() {
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize( window.innerWidth, window.innerHeight );
+
+        }
+
+        function animationLoop( t )
+        {
+
+        controls.update( );
+
+        for( var wall of walls )
+        {
+        wall.getWorldDirection( v );
+        camera.getWorldDirection( u );
+
+        wall.material.opacity = 2*v.dot(u); 		// soft
+        //wall.visible = v.dot(u) > 0; 					// hard
+        }
+
+        light.position.copy( camera.position );
+        renderer.render( scene, camera );
+        }
+
+        // Render loop
+        function animate() {
+        requestAnimationFrame(animate);
+
+        renderer.render(scene, camera);
+        }
+
+        const startButton = document.getElementById( 'startButton' );
+        startButton.addEventListener( 'click', init );
+
+        function init() {
+
+        const overlay = document.getElementById( 'overlay' );
+        overlay.remove();
+
+        const listener = new THREE.AudioListener();
+        camera.add( listener );
+
+        debugger;
+        const audioElement = document.getElementById('music');
+        const sourceAudio = document.getElementById( 'sourceAudio' );
+        const audioURL = document.getElementById( 'txtAudioURL' );
+        sourceAudio.src = audioURL.value;
+        audioElement.load();
+        audioElement.play();
+
+        const positionalAudio = new THREE.PositionalAudio(listener);
+        positionalAudio.setMediaElementSource( audioElement );
+
+        //positionalAudio.source.onEnded = () => console.log("track ended");
+
+        var distanceValue = 20;
+        positionalAudio.setRefDistance( distanceValue ); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect.
+        var coneInnerAngle = 180;
+        var coneOuterAngle = 360;
+        var coneOuterGain = 0.1;
+        positionalAudio.setDirectionalCone( coneInnerAngle, coneOuterAngle, coneOuterGain );
+
+        var range = 0.1;
+        const helper = new PositionalAudioHelper( positionalAudio, range );
+        positionalAudio.add( helper );
+
+        const gltfLoader = new GLTFLoader();
+        gltfLoader.load( 'https://martineaoun.com/3DSoundReflection/BoomBox.glb', function ( gltf ) {
+
+        const boomBox = gltf.scene;
+        var boomBoxPositionX = 0;
+        var boomBoxPositionY = -9;
+        var boomBoxPositionZ = 0;
+
+        boomBox.position.set(boomBoxPositionX,boomBoxPositionY, boomBoxPositionZ); // Position at the corner of the room
+
+        var boomBoxScale = 100;
+        boomBox.scale.set( boomBoxScale, boomBoxScale, boomBoxScale );
+        boomBox.traverse( function ( object ) {
+
+        if ( object.isMesh ) {
+
+        object.material.envMap = scene;
+        object.geometry.rotateY( - Math.PI );
+        object.castShadow = true;
+
+        }
+
+        } );
+
+        boomBox.add( positionalAudio );
+        scene.add( boomBox );
+        animate();
+
+        } );
+        }
+
+    </script>
+</body>
+</html>

@@ -1,206 +1,747 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sound Wave Simulation</title>
-    <!-- Import Three.js library -->
-    <script type="importmap">
-        {
-        "imports": {
-        "three": "https://unpkg.com/three@0.141.0/build/three.module.js"
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>3D Sound Simulation</title>
+    <style>
+        :root {
+            touch-action: pan-x pan-y;
+            height: 100%;
         }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="password"] {
+            font-size: 16px;
         }
-    </script>
+
+        @media screen and (max-width: 767px) {
+
+            input[type="text"],
+            input[type="number"],
+            input[type="email"],
+            input[type="tel"],
+            input[type="password"] {
+                font-size: 16px;
+            }
+        }
+    </style>
 </head>
-<body>
+
+<body style="font-size: 16px;">
     <div>
-        <label>Audio URL: <input id="txtAudioURL" type="text" value="https://martineaoun.com/3DSoundReflection/tears for fears - mad world.mp3" style="width: 500px;"></label>
+        <input id="txtAudioURL" type="text" title="Audio URL"
+            value="https://martineaoun.com/3DSoundReflection/c3_major_scale_piano.wav"
+            style="width: 100%;height: 30px;font-size: 16px !important;">
         <audio id="music" preload="auto" style="display: none" crossOrigin="anonymous">
             <source id="sourceAudio" type="audio/mpeg">
         </audio>
-    </div>
-    <div id="overlay">
-        <button id="startButton">Play</button>
+        <p>
+            <label id="lblAudioFile" for="audioFile" class="file">Or choose a local audio file
+                <input type="file" id="audioFile" accept="audio/*" />
+            </label>
+        </p>
+        <div id="overlay">
+            <button id="startButton" style="width: 100%;height: 50px;">Play</button>
+        </div>
+        <p>
+            <input type="checkbox" id="hideBall" name="hideBall"><label for="hideBall">Hide Ball</label>
+            <label id="lblNote" style="font-weight: bolder; font-size: x-large; float: right;"></label>
+        </p>
     </div>
     <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'https://unpkg.com/three@0.141.0/examples/jsm/controls/OrbitControls.js';
-        import { PositionalAudioHelper } from 'https://unpkg.com/three@0.141.0/examples/jsm/helpers/PositionalAudioHelper.js';
-        import { GLTFLoader } from 'https://unpkg.com/three@0.141.0/examples/jsm/loaders/GLTFLoader.js';
+        import * as THREE from 'https://unpkg.com/three@0.120.0/build/three.module.js';
+        import { OrbitControls } from 'https://unpkg.com/three@0.120.0/examples/jsm/controls/OrbitControls.js';
+        import { PositionalAudioHelper } from 'https://unpkg.com/three@0.120.0/examples/jsm/helpers/PositionalAudioHelper.js';
+        import { GLTFLoader } from 'https://unpkg.com/three@0.120.0/examples/jsm/loaders/GLTFLoader.js';
+        import { simplex } from 'https://martineaoun.com/3DSoundReflection/simplex-noise.js';
 
-        // Simulation parameters - To add
+        const noise = new simplex.SimplexNoise();
 
+        var roomCubeDimension = 20;
+        var boomBoxPositionX = 0;
+        var boomBoxPositionY = -(roomCubeDimension / 2) + 1;
+        var boomBoxPositionZ = 0;
 
         let analyser;
-        let mesh;
+        let analyserAmp;
+        let dataArray;
+        let dataArrayAmp;
+        let group;
+        var icosahedronGeometry = new THREE.IcosahedronGeometry(10, 4);
+        var lambertMaterial = new THREE.MeshLambertMaterial({
+            color: 'white',
+            wireframe: true,
+            opacity: 0.6,
+            side: THREE.FrontSide,
+            vertexColors: false,
+            reflectivity: 1,
+            refractionRatio: 0.98
+        });
+        let ball = new THREE.Mesh(icosahedronGeometry, lambertMaterial);
+        let positionalAudio;
+        let particleSystem; // Variable to hold the particle system
+        let rays = []; // Array to hold the rays  
+        let isSoundPlaying = false;
 
         // Initialize Three.js scene, camera, and renderer
         let scene = new THREE.Scene();
-        scene.background = new THREE.Color( 'gainsboro' );
+        scene.background = new THREE.Color('gainsboro');
 
         let camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight);
-        camera.position.set( 0, 0, 60 );
-        camera.lookAt( scene.position );
+        camera.position.set(0, 0, 70);
+        camera.lookAt(scene.position);
 
-        var renderer = new THREE.WebGLRenderer( { antialias: true } );
+        group = new THREE.Group();
+
+        var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setAnimationLoop( animationLoop );
+        renderer.setAnimationLoop(animationLoop);
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        window.addEventListener( 'resize', onWindowResize );
+        window.addEventListener('resize', onWindowResize);
 
-        var controls = new OrbitControls( camera, renderer.domElement );
+        var controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
-        var light = new THREE.DirectionalLight( 'white', 3 );
-        light.position.set( 1, 1, 1 );
-        scene.add( light );
+        var light = new THREE.DirectionalLight('white', 1);
+        light.position.set(1, 1, 1);
+        scene.add(light);
 
-        // Create a grid helper with size 20 and divisions 20
-        let gridHelper = new THREE.GridHelper(20, 20, 0xc1c1c1, 0xc1c1c1 );
+        // Create a grid helper
+        let gridHelper = new THREE.GridHelper(roomCubeDimension, roomCubeDimension, 0xc1c1c1, 0xc1c1c1);
         var gridHelperPositionX = 0;
-        var gridHelperPositionY = -10;
+        var gridHelperPositionY = -roomCubeDimension / 2;
         var gridHelperPositionZ = 0;
 
-        gridHelper.position.set(gridHelperPositionX,gridHelperPositionY, gridHelperPositionZ);
+        gridHelper.position.set(gridHelperPositionX, gridHelperPositionY, gridHelperPositionZ);
         // Add the grid helper to the scene
         scene.add(gridHelper);
 
-        var geometry = new THREE.BoxGeometry(20, 20, 0.4),
-        material = new THREE.MeshLambertMaterial( {color:'royalblue', transparent: true} );
+        var geometry = new THREE.BoxGeometry(roomCubeDimension, roomCubeDimension, 0.4),
+            material = new THREE.MeshLambertMaterial({ color: 'white', transparent: true });
 
-        var wall1 = new THREE.Mesh( geometry, material.clone() );
-        wall1.position.z = 10;
+        var wall1 = new THREE.Mesh(geometry, material.clone());
+        wall1.position.z = roomCubeDimension / 2;
 
-        var wall2 = new THREE.Mesh( geometry, material.clone() );
+        var wall2 = new THREE.Mesh(geometry, material.clone());
         wall2.rotation.y = Math.PI;
-        wall2.position.z = -10;
+        wall2.position.z = -roomCubeDimension / 2;
 
-        var wall3 = new THREE.Mesh( geometry, material.clone() );
-        wall3.rotation.y = Math.PI/2;
-        wall3.position.x = 10;
+        var wall3 = new THREE.Mesh(geometry, material.clone());
+        wall3.rotation.y = Math.PI / 2;
+        wall3.position.x = roomCubeDimension / 2;
 
-        var wall4 = new THREE.Mesh( geometry, material.clone() );
-        wall4.rotation.y = -Math.PI/2;
-        wall4.position.x = -10;
+        var wall4 = new THREE.Mesh(geometry, material.clone());
+        wall4.rotation.y = -Math.PI / 2;
+        wall4.position.x = -roomCubeDimension / 2;
 
-        var wall5 = new THREE.Mesh( geometry, material.clone() );
-        wall5.rotation.x = Math.PI/2;
-        wall5.position.y = -10;
+        var wall5 = new THREE.Mesh(geometry, material.clone());
+        wall5.rotation.x = Math.PI / 2;
+        wall5.position.y = -roomCubeDimension / 2;
 
-        var wall6 = new THREE.Mesh( geometry, material.clone() );
-        wall6.rotation.x = -Math.PI/2;
-        wall6.position.y = 10;
+        var wall6 = new THREE.Mesh(geometry, material.clone());
+        wall6.rotation.x = -Math.PI / 2;
+        wall6.position.y = roomCubeDimension / 2;
 
         var walls = [wall1, wall2, wall3, wall4, wall5, wall6];
 
-        scene.add( ...walls );
+        scene.add(...walls);
 
-        var v = new THREE.Vector3( ),
-        u = new THREE.Vector3( );
+        var v = new THREE.Vector3(),
+            u = new THREE.Vector3();
 
         function onWindowResize() {
-
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-
-        renderer.setSize( window.innerWidth, window.innerHeight );
-
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function animationLoop( t )
-        {
+        const hideBallCheckbox = document.getElementById("hideBall");
 
-        controls.update( );
+        hideBallCheckbox.addEventListener("change", () => {
+            if (hideBallCheckbox.checked) {
+                ball.visible = false;
+            } else {
+                ball.visible = true;
+            }
+        });
 
-        for( var wall of walls )
-        {
-        wall.getWorldDirection( v );
-        camera.getWorldDirection( u );
+        function animationLoop(t) {
+            controls.update();
 
-        wall.material.opacity = 2*v.dot(u); 		// soft
-        //wall.visible = v.dot(u) > 0; 					// hard
+            for (var wall of walls) {
+                wall.getWorldDirection(v);
+                camera.getWorldDirection(u);
+
+                wall.material.opacity = 2 * v.dot(u); 		// soft
+                //wall.visible = v.dot(u) > 0; 					// hard
+            }
+
+            //light.position.copy(camera.position);
+            renderer.render(scene, camera);
         }
 
-        light.position.copy( camera.position );
-        renderer.render( scene, camera );
+        const startButton = document.getElementById('startButton');
+        const audioURL = document.getElementById('txtAudioURL');
+        var file = document.getElementById("audioFile");
+        var lblAudioFile = document.getElementById("lblAudioFile");
+        var files;
+
+        file.onchange = function () {
+            document.getElementById('txtAudioURL').value = '';
+            files = this.files;
         }
 
-        // Render loop
-        function animate() {
-        requestAnimationFrame(animate);
-
-        renderer.render(scene, camera);
-        }
-
-        const startButton = document.getElementById( 'startButton' );
-        startButton.addEventListener( 'click', init );
+        startButton.addEventListener('click', init);
 
         function init() {
 
-        const overlay = document.getElementById( 'overlay' );
-        overlay.remove();
+            const sourceAudio = document.getElementById('sourceAudio');
 
-        const listener = new THREE.AudioListener();
-        camera.add( listener );
+            const overlay = document.getElementById('overlay');
+            overlay.hidden = true;
+            audioURL.disabled = true;
+            lblAudioFile.hidden = true;
 
-        debugger;
-        const audioElement = document.getElementById('music');
-        const sourceAudio = document.getElementById( 'sourceAudio' );
-        const audioURL = document.getElementById( 'txtAudioURL' );
-        sourceAudio.src = audioURL.value;
-        audioElement.load();
-        audioElement.play();
+            const listener = new THREE.AudioListener();
+            camera.add(listener);
 
-        const positionalAudio = new THREE.PositionalAudio(listener);
-        positionalAudio.setMediaElementSource( audioElement );
+            if (audioURL.value != '') {
+                lblAudioFile.hidden = true;
+                sourceAudio.src = audioURL.value;
+            }
+            else {
+                audioURL.hidden = true;
+                sourceAudio.src = URL.createObjectURL(files[0]);
+            }
 
-        //positionalAudio.source.onEnded = () => console.log("track ended");
+            positionalAudio = new THREE.PositionalAudio(listener);
 
-        var distanceValue = 20;
-        positionalAudio.setRefDistance( distanceValue ); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect.
-        var coneInnerAngle = 180;
-        var coneOuterAngle = 360;
-        var coneOuterGain = 0.1;
-        positionalAudio.setDirectionalCone( coneInnerAngle, coneOuterAngle, coneOuterGain );
+            var distanceValue = roomCubeDimension;
+            var coneInnerAngle = 180;
+            var coneOuterAngle = 360;
+            var coneOuterGain = 0.1;
+            var range = 0.1;
+            const helper = new PositionalAudioHelper(positionalAudio, range);
 
-        var range = 0.1;
-        const helper = new PositionalAudioHelper( positionalAudio, range );
-        positionalAudio.add( helper );
+            const loader = new THREE.AudioLoader();
+            loader.load(sourceAudio.src, (buffer) => {
+                setTimeout(() => {
+                    positionalAudio.setBuffer(buffer);
+                    //positionalAudio.setLoop(false);
+                    positionalAudio.setVolume(1.0);
+                    positionalAudio.setRefDistance(distanceValue); // the reference distance for reducing volume as the audio source moves further from the listener – i.e. the distance at which the volume reduction starts taking effect.
+                    positionalAudio.setDirectionalCone(coneInnerAngle, coneOuterAngle, coneOuterGain);
+                    positionalAudio.add(helper);
 
-        const gltfLoader = new GLTFLoader();
-        gltfLoader.load( 'https://martineaoun.com/3DSoundReflection/BoomBox.glb', function ( gltf ) {
+                    const gltfLoader = new GLTFLoader();
+                    gltfLoader.load('https://martineaoun.com/3DSoundReflection/BoomBox.glb', function (gltf) {
 
-        const boomBox = gltf.scene;
-        var boomBoxPositionX = 0;
-        var boomBoxPositionY = -9;
-        var boomBoxPositionZ = 0;
+                        const boomBox = gltf.scene;
 
-        boomBox.position.set(boomBoxPositionX,boomBoxPositionY, boomBoxPositionZ); // Position at the corner of the room
+                        boomBox.position.set(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ); // Position at the center of the room
 
-        var boomBoxScale = 100;
-        boomBox.scale.set( boomBoxScale, boomBoxScale, boomBoxScale );
-        boomBox.traverse( function ( object ) {
+                        var boomBoxScale = 100;
+                        boomBox.scale.set(boomBoxScale, boomBoxScale, boomBoxScale);
+                        boomBox.traverse(function (object) {
 
-        if ( object.isMesh ) {
+                            if (object.isMesh) {
+                                object.material.envMap = scene;
+                                object.geometry.rotateY(- Math.PI);
+                                object.castShadow = true;
+                            }
 
-        object.material.envMap = scene;
-        object.geometry.rotateY( - Math.PI );
-        object.castShadow = true;
+                        });
+
+                        boomBox.add(positionalAudio);
+                        scene.add(boomBox);
+
+                        createRays(); // Create the rays here
+
+                        setTimeout(() => {
+                            positionalAudio.play();
+                            isSoundPlaying = true;
+
+                            // // Stop the animation loop when the sound finishes
+                            // positionalAudio.onEnded = function () {
+                            //     isSoundPlaying = false;
+                            // };
+
+                            var audioAnalyser = new THREE.AudioAnalyser(positionalAudio);
+                            analyser = audioAnalyser.analyser;
+                            analyser.fftSize = 4096; // https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode/fftSize
+                            var audioAnalyserAmp = new THREE.AudioAnalyser(positionalAudio);
+                            analyserAmp = audioAnalyserAmp.analyser;
+                            analyserAmp.fftSize = 512;
+
+                            var bufferLength = analyser.frequencyBinCount;
+                            dataArray = new Uint8Array(bufferLength);
+                            bufferLength = analyserAmp.frequencyBinCount;
+                            dataArrayAmp = new Uint8Array(bufferLength);
+
+                            ball.position.set(0, 0, 0);
+                            group.add(ball);
+
+                            var ambientLight = new THREE.AmbientLight(0xaaaaaa);
+                            scene.add(ambientLight);
+
+                            var spotLight = new THREE.SpotLight(0xffffff);
+                            spotLight.intensity = 0.9;
+                            spotLight.position.set(-roomCubeDimension / 2, roomCubeDimension * 2, roomCubeDimension);
+                            spotLight.lookAt(ball);
+                            spotLight.castShadow = true;
+                            scene.add(spotLight);
+
+                            scene.add(group);
+
+                            var particleCount = 1000;
+                            var particles = new THREE.Geometry();
+                            var bufferSpace = 5; // Add buffer space between particles and room boundaries
+
+                            for (var p = 0; p < particleCount; p++) {
+                                var x = (Math.random() - 0.5) * (roomCubeDimension - bufferSpace * 2); // Spread particles uniformly within room width with buffer space
+                                var y = (Math.random() - 0.5) * (roomCubeDimension - bufferSpace * 2); // Spread particles uniformly within room height with buffer space
+                                var z = (Math.random() - 0.5) * (roomCubeDimension - bufferSpace * 2); // Spread particles uniformly within room depth with buffer space
+
+                                var particle = new THREE.Vector3(x, y, z);
+
+                                particles.vertices.push(particle);
+                            }
+
+                            var particleMaterial = new THREE.PointsMaterial({
+                                color: 'red',
+                                size: 0.2
+                            });
+
+                            particleSystem = new THREE.Points(particles, particleMaterial);
+                            scene.add(particleSystem);
+
+                            animate();
+
+                        }, 1000);
+
+                    });
+
+                }, 1000);
+            });
+        }
+
+        function yinPitchDetection(float32AudioBuffer, sampleRate) {
+            const threshold = 0.05;
+            const probabilityThreshold = 0.05;
+            const yinBuffer = new Float32Array(float32AudioBuffer.length / 2);
+
+            let tau;
+            let minTau = 1;
+            let minFrequency = 12; // Adjusted minimum frequency
+            let maxTau = Math.floor(sampleRate / minFrequency); // Maximum tau for low frequencies
+
+            // Step 1: Calculate difference function
+            for (let t = 0; t < yinBuffer.length; t++) {
+                yinBuffer[t] = 0;
+            }
+            for (let t = 0; t < yinBuffer.length; t++) {
+                for (let j = 0; j < yinBuffer.length; j++) {
+                    yinBuffer[t] += Math.pow(float32AudioBuffer[j] - float32AudioBuffer[j + t], 2);
+                }
+            }
+
+            // Step 2: Calculate cumulative mean normalized difference function
+            yinBuffer[0] = 1;
+            let runningSum = 0;
+            for (let t = 1; t < yinBuffer.length; t++) {
+                runningSum += yinBuffer[t];
+                yinBuffer[t] *= t / runningSum;
+            }
+
+            // Step 3: Absolute threshold
+            let tauEstimate = -1;
+            for (let t = minTau; t < maxTau; t++) {
+                if (yinBuffer[t] < threshold) {
+                    while (t + 1 < maxTau && yinBuffer[t + 1] < yinBuffer[t]) {
+                        t++;
+                    }
+                    tauEstimate = t;
+                    break;
+                }
+            }
+
+            // Step 4: Parabolic interpolation
+            if (tauEstimate !== -1) {
+                const betterTau = (tauEstimate > 0 && tauEstimate < yinBuffer.length - 1) ?
+                    tauEstimate + (yinBuffer[tauEstimate + 1] - yinBuffer[tauEstimate - 1]) /
+                    (2 * (2 * yinBuffer[tauEstimate] - yinBuffer[tauEstimate - 1] - yinBuffer[tauEstimate + 1])) :
+                    tauEstimate;
+
+                let pitch = sampleRate / betterTau;
+
+                // Ensure pitch is within expected range
+                if (pitch >= minFrequency && pitch <= sampleRate / 2 && yinBuffer[Math.round(betterTau)] < probabilityThreshold) {
+                    return pitch;
+                }
+            }
+
+            return null;
+        }
+        // Render loop
+        function animate() {
+            isSoundPlaying = positionalAudio.isPlaying;
+
+            analyser.getByteTimeDomainData(dataArray);
+
+            const dominantFrequency = getDominantFrequency(dataArray);
+            const noteName = frequencyToNote(dominantFrequency);
+            const color = noteToColor(noteName);
+            //ball.material.color.setHex(color);
+
+            if (dataArrayAmp) {
+                analyserAmp.getByteFrequencyData(dataArrayAmp);
+            }
+
+            //  // Verify dataArray values
+            //  console.log(dataArray);
+
+            const averageFrequency = getAverageFrequency(dataArrayAmp);
+            const newColor = new THREE.Color().setHSL(averageFrequency / 255, 1, 0.5); // Adjust color based on average frequency
+            ball.material.color.copy(newColor);
+
+            console.log("Average Freq: " + averageFrequency + " ; Dominant Freq: " + dominantFrequency + " ; Note: " + noteName + " ; Color: " + color);
+
+            const lblNote = document.getElementById("lblNote");
+
+            if (noteName) {
+                lblNote.innerHTML = noteName;
+                lblNote.style.color = color.replace('0x', '#');
+            }
+            var lowerHalfArray = dataArrayAmp.slice(0, (dataArrayAmp.length / 2) - 1);
+            var upperHalfArray = dataArrayAmp.slice((dataArrayAmp.length / 2) - 1, dataArrayAmp.length - 1);
+
+            var overallAvg = avg(dataArrayAmp);
+            var lowerMax = max(lowerHalfArray);
+            var lowerAvg = avg(lowerHalfArray);
+            var upperMax = max(upperHalfArray);
+            var upperAvg = avg(upperHalfArray);
+
+            var lowerMaxFr = lowerMax / lowerHalfArray.length;
+            var lowerAvgFr = lowerAvg / lowerHalfArray.length;
+            var upperMaxFr = upperMax / upperHalfArray.length;
+            var upperAvgFr = upperAvg / upperHalfArray.length;
+
+            makeRoughBall(ball, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
+
+            const hasAudioData = (averageFrequency > 12);
+
+            if (rays.length > 0) {
+                rays.forEach(ray => {
+                    if (ray.line) {
+                        ray.line.visible = hasAudioData;
+                    }
+                    ray.visible = hasAudioData;
+                });
+            }
+
+            if (hasAudioData) {
+                particleSystem.geometry.vertices.forEach((particle, i) => {
+                    var frequencyIndex = Math.floor(i * (dataArrayAmp.length / particleSystem.geometry.vertices.length));
+                    var frequencyValue = dataArrayAmp[frequencyIndex];
+                    var offset = roomCubeDimension / 2;
+                    var amp = 0.5;
+                    var dampingFactor = 1 - (frequencyValue / 255);
+                    var x = particle.x + noise.noise3D(particle.x, particle.y, dampingFactor) * amp;
+                    var y = particle.y + noise.noise3D(particle.y, particle.z, dampingFactor) * amp;
+                    var z = particle.z + noise.noise3D(particle.z, particle.x, dampingFactor) * amp;
+
+                    // Keep particles within the room dimensions
+                    x = THREE.MathUtils.clamp(x, -offset, offset);
+                    y = THREE.MathUtils.clamp(y, -offset, offset);
+                    z = THREE.MathUtils.clamp(z, -offset, offset);
+
+                    particle.set(x, y, z);
+                });
+                particleSystem.geometry.verticesNeedUpdate = true;
+
+                // Update particle size based on amplitude
+                var particleMaterial = particleSystem.material;
+                var size = modulate(overallAvg, 0, 255, 0.1, 2);
+                particleMaterial.size = size;
+
+                updateRays(color, dataArrayAmp);
+            }
+
+            renderer.render(scene, camera);
+
+            if (isSoundPlaying) {
+                requestAnimationFrame(animate);
+            } else {
+                particleSystem.visible = false;
+                overlay.hidden = false;
+                audioURL.disabled = false;
+                lblAudioFile.hidden = false;
+                rays = [];
+                lblNote.innerHTML = '';
+            }
+        }
+
+        function makeRoughBall(mesh, bassFr, treFr) {
+            mesh.geometry.vertices.forEach(function (vertex, i) {
+                var offset = mesh.geometry.parameters.radius;
+                var amp = 7;
+                var time = window.performance.now();
+                vertex.normalize();
+                var rf = 0.00001;
+                var distance = (offset + bassFr) + noise.noise3D(vertex.x + time * rf * 7, vertex.y + time * rf * 8, vertex.z + time * rf * 9) * amp * treFr;
+                vertex.multiplyScalar(distance);
+            });
+            mesh.geometry.verticesNeedUpdate = true;
+            mesh.geometry.normalsNeedUpdate = true;
+            mesh.geometry.computeVertexNormals();
+            mesh.geometry.computeFaceNormals();
+        }
+
+        function fractionate(val, minVal, maxVal) {
+            return (val - minVal) / (maxVal - minVal);
+        }
+
+        function modulate(val, minVal, maxVal, outMin, outMax) {
+            var fr = fractionate(val, minVal, maxVal);
+            var delta = outMax - outMin;
+            return outMin + (fr * delta);
+        }
+
+        function avg(arr) {
+            var total = arr.reduce(function (sum, b) { return sum + b; });
+            return (total / arr.length);
+        }
+
+        function max(arr) {
+            return arr.reduce(function (a, b) { return Math.max(a, b); })
+        }
+
+        // Function to calculate the average frequency from frequency data
+        function getAverageFrequency(frequencyData) {
+            let sum = 0;
+            for (let i = 0; i < frequencyData.length; i++) {
+                sum += frequencyData[i];
+            }
+            return sum / frequencyData.length;
+        }
+
+        // Function to get the dominant frequency from the frequency data
+        function getDominantFrequency(dataArray) {
+            const sampleRate = analyser.context.sampleRate;
+            const frequency = yinPitchDetection(dataArray, sampleRate);
+            return frequency > 0 ? frequency : 0;
+        }
+
+        // Function to map frequency to musical note
+        function frequencyToNote(frequency) {
+            const A4 = 440;
+            const C0 = A4 * Math.pow(2, -4.75);
+            const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+            let h = Math.round(12 * Math.log2(frequency / C0));
+            let octave = Math.floor(h / 12);
+            let note = h % 12;
+            //console.log(noteNames[note] + octave);
+            return noteNames[note] + octave;
+        }
+
+        // Function to map musical note to color
+        function noteToColor(note) {
+            const noteColors = {
+                'C': '0xff0000',   // Red
+                'C#': '0xff4500',  // OrangeRed
+                'D': '0xff7f00',   // Orange
+                'D#': '0xffa500',  // Orange
+                'E': '0xffff00',   // Yellow
+                'F': '0x00ff00',   // Green
+                'F#': '0x32cd32',  // LimeGreen
+                'G': '0x0000ff',   // Blue
+                'G#': '0x4169e1',  // RoyalBlue
+                'A': '0x4b0082',   // Indigo
+                'A#': '0x9932cc',  // DarkOrchid
+                'B': '0x9400d3',   // Violet
+            };
+
+            if (note) {
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                const noteWithoutOctave = note.slice(0, -1); // Extract note without octave
+
+                if (noteColors.hasOwnProperty(noteWithoutOctave)) {
+                    return noteColors[noteWithoutOctave];
+                }
+            }
+
+            // Default to white if the note is not found in noteColors
+            return '0xffffff';
+        }
+
+        function reflectVector(incident, normal) {
+            return incident.sub(normal.multiplyScalar(2 * incident.dot(normal)));
+        }
+
+        function createRays() {
+            // Define the ray properties
+            var rayLength; // Set to the room dimension to ensure it reaches the walls
+            const rayMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+
+            // Create one ray for each wall
+            walls.forEach((wall, index) => {
+                if (index == 5) {
+                    rayLength = roomCubeDimension - 1;
+                }
+                else {
+                    rayLength = (roomCubeDimension / 2) * Math.sqrt(2);
+                }
+                // Skip creating the ray for the bottom wall (parallel to the floor)
+                if (index === 4 || index === 0) {
+                    return;
+                }
+                const geometry = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, 0, 0),
+                    new THREE.Vector3(0, 0, rayLength)
+                ]);
+
+                const line = new THREE.Line(geometry, rayMaterial);
+                line.visible = false;
+                rays.push({ line, wall, incidentAngle: Math.PI / 4 }); // Start with an incident angle of 45 degrees
+                scene.add(line);
+            });
+        }
+
+        function updateRays(color, dataArrayAmp) {
+            var rayLength;
+            const amplitude = avg(dataArrayAmp) / 255;
+
+            rays.forEach((ray, index) => {
+                const wall = walls[index];
+                if (wall) {
+
+                    const boomboxPosition = new THREE.Vector3(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ);
+                    const wallPosition = wall.position;
+                    const direction = new THREE.Vector3().subVectors(wallPosition, boomboxPosition).normalize();
+
+                    if (index == 5) {
+                        rayLength = roomCubeDimension - 1;
+                    }
+                    else {
+                        if (index == 4) {
+                            // Skip the bottom wall ray
+                            return;
+                        }
+                        else {
+                            rayLength = (roomCubeDimension / 2) * Math.sqrt(2);
+                            ray.line.material.color.setHex(color);
+                            // Adjust thickness based on amplitude
+                            const thickness = calculateThickness(amplitude);
+                            ray.line.material.linewidth = thickness;
+                            ray.line.geometry.computeBoundingSphere(); // Update bounding sphere for ray
+                        }
+
+                    }
+
+                    const startPoint = boomboxPosition.clone();
+                    const endPoint = startPoint.clone().add(direction.multiplyScalar(rayLength));
+
+                    const positions = ray.line ? ray.line.geometry.attributes.position.array : ray.geometry.attributes.position.array;
+                    positions[0] = startPoint.x;
+                    positions[1] = startPoint.y;
+                    positions[2] = startPoint.z;
+                    positions[3] = endPoint.x;
+                    positions[4] = endPoint.y;
+                    positions[5] = endPoint.z;
+                    if (ray.line) {
+                        ray.line.geometry.attributes.position.needsUpdate = true;
+                    }
+                    else {
+                        ray.geometry.attributes.position.needsUpdate = true;
+                    }
+
+                    reflectRay(ray, color, amplitude);
+
+                }
+            });
+        }
+
+        function reflectRay(ray, color, amplitude) {
+
+            // Get the last point of the current ray
+            const points = ray.line ? ray.line.geometry.attributes.position.array : ray.geometry.attributes.position.array;
+            const lastPoint = new THREE.Vector3(points[3], points[4], points[5]);
+
+            // Find the closest wall and calculate the normal vector
+            let closestWall = null;
+            let closestDistance = Infinity;
+            let wallNormal = new THREE.Vector3();
+
+            walls.forEach((wall) => {
+                const wallDistance = wall.position.distanceTo(lastPoint);
+                if (wallDistance < closestDistance) {
+                    closestDistance = wallDistance;
+                    closestWall = wall;
+                    closestWall.getWorldDirection(wallNormal).negate(); // Get the normal direction of the wall
+                }
+            });
+
+            // Calculate the direction vector of the ray
+            const startPoint = new THREE.Vector3(points[0], points[1], points[2]);
+            const rayDirection = new THREE.Vector3().subVectors(lastPoint, startPoint).normalize();
+
+            // Calculate the reflection direction
+            const dotProduct = rayDirection.dot(wallNormal);
+            const reflectionDirection = new THREE.Vector3()
+                .copy(rayDirection)
+                .sub(wallNormal.multiplyScalar(2 * dotProduct))
+                .normalize();
+
+            // Calculate the new end point based on the reflection direction
+            if (ray.line) {
+                ray.line.computeLineDistances()
+            }
+            else {
+                ray.computeLineDistances()
+            }
+
+            let ld = ray.line ? ray.line.geometry.getAttribute("lineDistance") : ray.geometry.getAttribute("lineDistance");
+            const length = ld.getX(ld.count - 1);
+            const reflectedEndPoint = new THREE.Vector3()
+                .copy(lastPoint)
+                .add(reflectionDirection.multiplyScalar(length));
+
+            // Create the new reflected ray
+            const reflectedRayGeometry = new THREE.BufferGeometry();
+            reflectedRayGeometry.setFromPoints([lastPoint, reflectedEndPoint]);
+            const reflectedRay = new THREE.Line(reflectedRayGeometry, ray.material);
+            reflectedRay.material.color.setHex(color);
+            const intensity = Math.max(0.6, amplitude); // Minimum intensity
+            reflectedRay.material.opacity = intensity;
+            if (reflectedRay.line) {
+                reflectedRay.line.visible = (color != '0xffffff');
+            }
+            reflectedRay.visible = (color != '0xffffff');
+            rays.push(reflectedRay);
+            scene.add(reflectedRay);
 
         }
 
-        } );
+        function calculateThickness(amplitude) {
+            // Define the minimum and maximum thickness values for the rays
+            const minThickness = 1; // Minimum thickness
+            const maxThickness = 10; // Maximum thickness
 
-        boomBox.add( positionalAudio );
-        scene.add( boomBox );
-        animate();
+            // Map the range of possible amplitude values to the range of thickness values
+            // You might need to adjust this mapping based on the characteristics of your data
+            const mappedThickness = minThickness + (amplitude * (maxThickness - minThickness));
 
-        } );
+            return mappedThickness;
         }
-
     </script>
 </body>
+
 </html>
