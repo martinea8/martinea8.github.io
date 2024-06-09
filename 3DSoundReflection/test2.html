@@ -332,63 +332,56 @@
             });
         }
 
-        function yinPitchDetection(float32AudioBuffer, sampleRate) {
-            const threshold = 0.05;
-            const probabilityThreshold = 0.05;
-            const yinBuffer = new Float32Array(float32AudioBuffer.length / 2);
-
+        function yinPitchDetection(data, sampleRate) {
+            let yinBuffer = new Float32Array(data.length / 2);
             let tau;
-            let minTau = 1;
-            let minFrequency = 12; // Adjusted minimum frequency
-            let maxTau = Math.floor(sampleRate / minFrequency); // Maximum tau for low frequencies
 
-            // Step 1: Calculate difference function
-            for (let t = 0; t < yinBuffer.length; t++) {
-                yinBuffer[t] = 0;
-            }
-            for (let t = 0; t < yinBuffer.length; t++) {
-                for (let j = 0; j < yinBuffer.length; j++) {
-                    yinBuffer[t] += Math.pow(float32AudioBuffer[j] - float32AudioBuffer[j + t], 2);
+            // Calculate difference function
+            for (tau = 0; tau < yinBuffer.length; tau++) {
+                yinBuffer[tau] = 0;
+                for (let i = 0; i < yinBuffer.length; i++) {
+                    let delta = data[i] - data[i + tau];
+                    yinBuffer[tau] += delta * delta;
                 }
             }
 
-            // Step 2: Calculate cumulative mean normalized difference function
+            // Calculate cumulative mean normalized difference
             yinBuffer[0] = 1;
             let runningSum = 0;
-            for (let t = 1; t < yinBuffer.length; t++) {
-                runningSum += yinBuffer[t];
-                yinBuffer[t] *= t / runningSum;
+            for (tau = 1; tau < yinBuffer.length; tau++) {
+                runningSum += yinBuffer[tau];
+                yinBuffer[tau] *= tau / runningSum;
             }
 
-            // Step 3: Absolute threshold
-            let tauEstimate = -1;
-            for (let t = minTau; t < maxTau; t++) {
-                if (yinBuffer[t] < threshold) {
-                    while (t + 1 < maxTau && yinBuffer[t + 1] < yinBuffer[t]) {
-                        t++;
+            // Detect threshold
+            let threshold = 0.1;
+            let minTau = -1;
+            for (tau = 1; tau < yinBuffer.length; tau++) {
+                if (yinBuffer[tau] < threshold) {
+                    while (tau + 1 < yinBuffer.length && yinBuffer[tau + 1] < yinBuffer[tau]) {
+                        tau++;
                     }
-                    tauEstimate = t;
+                    minTau = tau;
                     break;
                 }
             }
 
-            // Step 4: Parabolic interpolation
-            if (tauEstimate !== -1) {
-                const betterTau = (tauEstimate > 0 && tauEstimate < yinBuffer.length - 1) ?
-                    tauEstimate + (yinBuffer[tauEstimate + 1] - yinBuffer[tauEstimate - 1]) /
-                    (2 * (2 * yinBuffer[tauEstimate] - yinBuffer[tauEstimate - 1] - yinBuffer[tauEstimate + 1])) :
-                    tauEstimate;
-
-                let pitch = sampleRate / betterTau;
-
-                // Ensure pitch is within expected range
-                if (pitch >= minFrequency && pitch <= sampleRate / 2 && yinBuffer[Math.round(betterTau)] < probabilityThreshold) {
-                    return pitch;
-                }
+            if (minTau == -1) {
+                return -1;
             }
 
-            return null;
+            // Parabolic interpolation for accurate estimation
+            let betterTau, x0, x2;
+            if (minTau > 0 && minTau < yinBuffer.length - 1) {
+                x0 = yinBuffer[minTau - 1];
+                x2 = yinBuffer[minTau + 1];
+                betterTau = minTau + (x2 - x0) / (2 * (2 * yinBuffer[minTau] - x0 - x2));
+                return sampleRate / betterTau;
+            }
+
+            return sampleRate / minTau;
         }
+
         // Render loop
         function animate() {
             isSoundPlaying = positionalAudio.isPlaying;
