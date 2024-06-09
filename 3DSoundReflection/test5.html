@@ -6,9 +6,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>3D Sound Simulation</title>
     <style>
-        :root{
+        :root {
             touch-action: pan-x pan-y;
             height: 100%;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="password"] {
+            font-size: 16px;
+        }
+
+        @media screen and (max-width: 767px) {
+
+            input[type="text"],
+            input[type="number"],
+            input[type="email"],
+            input[type="tel"],
+            input[type="password"] {
+                font-size: 16px;
+            }
         }
     </style>
 </head>
@@ -29,7 +48,7 @@
         </div>
         <div>
             <input type="checkbox" id="hideBall" name="hideBall"><label for="hideBall">Hide Ball</label>
-            <label id="lblNote" style="font-weight: bolder; font-size: x-large; float: right;"></label>
+            <label id="lblNote" style="font-weight: bolder; float: right;"></label>
         </div>
     </div>
     <script type="module">
@@ -70,7 +89,7 @@
         // Initialize Three.js scene, camera, and renderer
         let scene = new THREE.Scene();
         scene.background = new THREE.Color('gainsboro');
-        
+
         let camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight);
         camera.position.set(0, 0, 70);
         camera.lookAt(scene.position);
@@ -393,7 +412,7 @@
             console.log("Average Freq: " + averageFrequency + " ; Dominant Freq: " + dominantFrequency + " ; Note: " + noteName + " ; Color: " + color);
 
             const lblNote = document.getElementById("lblNote");
-  
+
             if (noteName) {
                 lblNote.innerHTML = noteName;
                 lblNote.style.color = color.replace('0x', '#');
