@@ -578,8 +578,8 @@
                 }
             }
 
-            // Default to white if the note is not found in noteColors
-            return '0xffffff';
+            // Default to grey if the note is not found in noteColors
+            return '0x808080';
         }
 
         function reflectVector(incident, normal) {
@@ -719,12 +719,12 @@
             reflectedRayGeometry.setFromPoints([lastPoint, reflectedEndPoint]);
             const reflectedRay = new THREE.Line(reflectedRayGeometry, ray.material);
             reflectedRay.material.color.setHex(color);
-            const intensity = Math.max(0.6, amplitude); // Minimum intensity
+            const intensity = Math.max(0.7, amplitude); // Minimum intensity
             reflectedRay.material.opacity = intensity;
             if (reflectedRay.line) {
-                reflectedRay.line.visible = (color != '0xffffff');
+                reflectedRay.line.visible = (color != '0x808080');
             }
-            reflectedRay.visible = (color != '0xffffff');
+            reflectedRay.visible = (color != '0x808080');
             rays.push(reflectedRay);
             scene.add(reflectedRay);
 
