@@ -760,7 +760,7 @@
             const length = ld.getX(ld.count - 1);
             const reflectedEndPoint = clampPointToRoom(new THREE.Vector3()
                 .copy(lastPoint)
-                .add(reflectionDirection.multiplyScalar(length)));
+                .add(reflectionDirection.multiplyScalar(roomCubeDimension)));
 
             // Create the new reflected ray
             const reflectedRayGeometry = new THREE.BufferGeometry();
