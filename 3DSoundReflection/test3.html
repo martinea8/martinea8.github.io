@@ -88,6 +88,8 @@
         let rays = []; // Array to hold the rays  
         let isSoundPlaying = false;
         let showCount = 0;
+        let lastUpdateTime = 0; // Define lastUpdateTime globally
+        const updateInterval = 1000; // Update interval in milliseconds
 
         // Initialize Three.js scene, camera, and renderer
         let scene = new THREE.Scene();
@@ -431,15 +433,6 @@
 
             const hasAudioData = (averageFrequency > 12);
 
-            if (rays.length > 0) {
-                rays.forEach(ray => {
-                    if (ray.line) {
-                        ray.line.visible = hasAudioData;
-                    }
-                    ray.visible = hasAudioData;
-                });
-            }
-
             if (hasAudioData) {
                 particleSystem.geometry.vertices.forEach((particle, i) => {
                     var frequencyIndex = Math.floor(i * (dataArrayAmp.length / particleSystem.geometry.vertices.length));
@@ -467,6 +460,16 @@
 
                 updateRays(color, dataArrayAmp);
             }
+            else {
+                if (rays.length > 0) {
+                    rays.forEach(ray => {
+                        if (ray.line) {
+                            ray.line.visible = hasAudioData;
+                        }
+                        ray.visible = hasAudioData;
+                    });
+                }
+            }
 
             renderer.render(scene, camera);
 
@@ -479,6 +482,7 @@
                 lblAudioFile.hidden = false;
                 rays = [];
                 lblNote.innerHTML = '';
+                lastUpdateTime = 0;
             }
         }
 
@@ -667,6 +671,7 @@
 
         function updateRays(color, dataArrayAmp) {
             const amplitude = avg(dataArrayAmp) / 255;
+            const currentTime = Date.now();
 
             // Filter out incident rays with a wall object
             const incidentRays = rays.filter(ray => ray.wall);
@@ -691,7 +696,8 @@
                 ray.line.material.linewidth = thickness;
                 ray.line.geometry.computeBoundingSphere(); // Update bounding sphere for ray
 
-                if (showCount == 0 || showCount >= showThreshold) {
+                if (lastUpdateTime != 0 && currentTime - lastUpdateTime >= updateInterval) {
+                    //debugger;
                     // Show/hide rays based on random selection
                     if (indicesToShow.includes(index)) {
                         ray.line.visible = true;
@@ -701,17 +707,23 @@
                         ray.visible = false;
                     }
                 }
-
+                else {
+                    if (lastUpdateTime == 0) {
+                        ray.line.visible = true;
+                        ray.visible = true;
+                    }
+                }
                 // If the ray is shown, reflect it
-                if (ray.line.visible) {
+                if (ray.visible || ray.line.visible) {
                     reflectRay(ray, color, amplitude);
                 }
+                else {
+                    // Hide the reflected ray if the incident ray is hidden
+                    hideReflectedRay(ray);
+                }
             });
-            if (showCount >= showThreshold) {
-                showCount = 0;
-            }
-            else {
-                showCount++;
+            if (currentTime - lastUpdateTime >= updateInterval) {
+                lastUpdateTime = currentTime;
             }
         }
 
@@ -794,6 +806,9 @@
             reflectedRay.material.opacity = 0.6;
             reflectedRay.material.linewidth = calculateThickness(amplitude, 5); // Adjust thickness based on amplitude
 
+            // Store the incident ray reference in the reflected ray object
+            reflectedRay.incidentRay = ray;
+
             rays.push(reflectedRay);
             scene.add(reflectedRay);
         }
@@ -832,6 +847,16 @@
             //const k = 5; // Adjust as needed for sensitivity
             const mappedThickness = minThickness + (Math.pow(amplitude, k) * (maxThickness - minThickness));
             return mappedThickness;
+        }
+
+        function hideReflectedRay(incidentRay) {
+            rays.forEach((ray) => {
+                // Check if the ray has an incidentRay property and if it matches the provided incidentRay
+                if (ray.incidentRay && ray.incidentRay === incidentRay) {
+                    // Hide the reflected ray
+                    ray.visible = false;
+                }
+            });
         }
     </script>
 </body>
