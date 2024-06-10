@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -87,6 +87,7 @@
         let particleSystem; // Variable to hold the particle system
         let rays = []; // Array to hold the rays  
         let isSoundPlaying = false;
+        let showCount = 0;
 
         // Initialize Three.js scene, camera, and renderer
         let scene = new THREE.Scene();
@@ -575,14 +576,10 @@
             return '0x808080';
         }
 
-        function reflectVector(incident, normal) {
-            return incident.sub(normal.multiplyScalar(2 * incident.dot(normal)));
-        }
-
         function createRays() {
             const rayMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
             const boomboxPosition = new THREE.Vector3(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ);
-            
+
             // Create three rays for each wall
             walls.forEach((wall, index) => {
                 // Skip creating the ray for the bottom wall (parallel to the floor)
@@ -613,8 +610,8 @@
                     boomboxPosition
                 ).normalize();
 
-                 // Calculate the direction from the boombox to the upper end of the wall
-                 const upperEndDirection4 = new THREE.Vector3().subVectors(
+                // Calculate the direction from the boombox to the upper end of the wall
+                const upperEndDirection4 = new THREE.Vector3().subVectors(
                     new THREE.Vector3(wallPosition.x, wallPosition.y + roomCubeDimension * 2, wallPosition.z),
                     boomboxPosition
                 ).normalize();
@@ -623,12 +620,10 @@
                 var i = 0;
                 var rayLength;
                 directions.forEach(direction => {
-                    if (i == 0)
-                    {
+                    if (i == 0) {
                         rayLength = roomCubeDimension / 2;
                     }
-                    else
-                    {
+                    else {
                         rayLength = roomCubeDimension;
                     }
                     var endVector = clampPointToRoom(boomboxPosition.clone().add(direction.multiplyScalar((rayLength) * Math.sqrt(2))));
@@ -656,7 +651,7 @@
 
             directions.forEach(direction => {
                 //debugger;
-                var endVector = boomboxPosition.clone().add(direction.multiplyScalar(roomCubeDimension/2));
+                var endVector = boomboxPosition.clone().add(direction.multiplyScalar(roomCubeDimension / 2));
 
                 const geometry = new THREE.BufferGeometry().setFromPoints([
                     boomboxPosition,
@@ -673,39 +668,64 @@
         function updateRays(color, dataArrayAmp) {
             const amplitude = avg(dataArrayAmp) / 255;
 
-            rays.forEach((ray, index) => {
-                const wall = ray.wall;
-                if (wall) {
-                    const boomboxPosition = new THREE.Vector3(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ);
-                    const direction = ray.direction.clone();
+            // Filter out incident rays with a wall object
+            const incidentRays = rays.filter(ray => ray.wall);
 
-                    // // Scale the direction based on amplitude, but ensure it remains within room boundaries
-                    // const scaledDirection = direction.multiplyScalar(amplitude * roomCubeDimension);
+            const showThreshold = 50; // Adjust the threshold as needed
 
-                    // // Calculate the end point of the ray within the room
-                    // let endPoint = boomboxPosition.clone().add(scaledDirection);
-                    // endPoint = clampPointToRoom(endPoint);
+            // Determine the number of incident rays to show
+            const numRaysToShow = Math.floor(incidentRays.length / 2); // Show half of the incident rays
 
-                    // const points = [boomboxPosition, endPoint];
-                    // ray.line.geometry.setFromPoints(points);
-                    
+            // Randomly select which incident rays to show
+            const indicesToShow = getRandomIndices(incidentRays.length, numRaysToShow);
 
-                    // Update ray color
-                    ray.line.material.color.setHex(color);
-                    // Adjust thickness based on amplitude
-                    const thickness = calculateThickness(amplitude);
-                    ray.line.material.linewidth = thickness;
-                    ray.line.geometry.computeBoundingSphere(); // Update bounding sphere for ray
+            incidentRays.forEach((ray, index) => {
+                const boomboxPosition = new THREE.Vector3(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ);
+                const direction = ray.direction.clone();
 
-                    // // Get the last point of the current ray
-                    // const points = ray.line ? ray.line.geometry.attributes.position.array : ray.geometry.attributes.position.array;
-                    // const lastPoint = new THREE.Vector3(points[3], points[4], points[5]);
+                // Update ray color
+                ray.line.material.color.setHex(color);
 
+                // Adjust thickness based on amplitude
+                const thickness = calculateThickness(amplitude, 5);
+                ray.line.material.linewidth = thickness;
+                ray.line.geometry.computeBoundingSphere(); // Update bounding sphere for ray
+
+                if (showCount == 0 || showCount >= showThreshold) {
+                    // Show/hide rays based on random selection
+                    if (indicesToShow.includes(index)) {
+                        ray.line.visible = true;
+                        ray.visible = true;
+                    } else {
+                        ray.line.visible = false;
+                        ray.visible = false;
+                    }
+                }
+
+                // If the ray is shown, reflect it
+                if (ray.line.visible) {
                     reflectRay(ray, color, amplitude);
                 }
             });
+            if (showCount >= showThreshold) {
+                showCount = 0;
+            }
+            else {
+                showCount++;
+            }
         }
 
+        // Function to generate an array of random indices
+        function getRandomIndices(maxIndex, numIndices) {
+            const indices = [];
+            while (indices.length < numIndices) {
+                const randomIndex = Math.floor(Math.random() * maxIndex);
+                if (!indices.includes(randomIndex)) {
+                    indices.push(randomIndex);
+                }
+            }
+            return indices;
+        }
         function clampPointToRoom(point) {
             const halfDimension = roomCubeDimension / 2;
 
@@ -718,7 +738,6 @@
         }
 
         function reflectRay(ray, color, amplitude) {
-
             // Get the last point of the current ray
             const points = ray.line ? ray.line.geometry.attributes.position.array : ray.geometry.attributes.position.array;
             const lastPoint = new THREE.Vector3(points[3], points[4], points[5]);
@@ -727,13 +746,25 @@
             let closestWall = null;
             let closestDistance = Infinity;
             let wallNormal = new THREE.Vector3();
+            let closestPointOnWall = new THREE.Vector3();
 
             walls.forEach((wall) => {
-                const wallDistance = wall.position.distanceTo(lastPoint);
+                // Get the normal of the wall
+                const normal = new THREE.Vector3();
+                wall.getWorldDirection(normal).negate();
+
+                // Calculate the closest point on the wall to the last point
+                const plane = new THREE.Plane(normal, -normal.dot(wall.position));
+                const projectedPoint = new THREE.Vector3();
+                plane.projectPoint(lastPoint, projectedPoint);
+
+                // Calculate the distance from the last point to the wall
+                const wallDistance = lastPoint.distanceTo(projectedPoint);
                 if (wallDistance < closestDistance) {
                     closestDistance = wallDistance;
                     closestWall = wall;
-                    closestWall.getWorldDirection(wallNormal).negate(); // Get the normal direction of the wall
+                    wallNormal.copy(normal);
+                    closestPointOnWall.copy(projectedPoint);
                 }
             });
 
@@ -742,54 +773,64 @@
             const rayDirection = new THREE.Vector3().subVectors(lastPoint, startPoint).normalize();
 
             // Calculate the reflection direction
-            const dotProduct = rayDirection.dot(wallNormal);
             const reflectionDirection = new THREE.Vector3()
                 .copy(rayDirection)
-                .sub(wallNormal.multiplyScalar(2 * dotProduct))
+                .sub(wallNormal.multiplyScalar(2 * rayDirection.dot(wallNormal)))
                 .normalize();
 
-            // Calculate the new end point based on the reflection direction
-            if (ray.line) {
-                ray.line.computeLineDistances()
-            }
-            else {
-                ray.computeLineDistances()
-            }
+            // Calculate the intersection point with the room boundaries
+            const intersectionPoint = calculateIntersectionWithRoom(lastPoint, reflectionDirection);
 
-            let ld = ray.line ? ray.line.geometry.getAttribute("lineDistance") : ray.geometry.getAttribute("lineDistance");
-            const length = ld.getX(ld.count - 1);
-            const reflectedEndPoint = clampPointToRoom(new THREE.Vector3()
-                .copy(lastPoint)
-                .add(reflectionDirection.multiplyScalar(roomCubeDimension)));
+            // Create a fallback material in case ray.material is undefined
+            const fallbackMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: calculateThickness(amplitude, 1), opacity: 0.8, transparent: true });
+
+            // Use ray.material if available, otherwise use fallbackMaterial
+            const material = ray.material ? ray.material.clone() : fallbackMaterial;
 
             // Create the new reflected ray
-            const reflectedRayGeometry = new THREE.BufferGeometry();
-            reflectedRayGeometry.setFromPoints([lastPoint, reflectedEndPoint]);
-            const reflectedRay = new THREE.Line(reflectedRayGeometry, ray.material);
+            const reflectedRayGeometry = new THREE.BufferGeometry().setFromPoints([lastPoint, intersectionPoint]);
+            const reflectedRay = new THREE.Line(reflectedRayGeometry, material);
             reflectedRay.material.color.setHex(color);
-            //const intensity = Math.max(0.6, amplitude); // Minimum intensity
-            reflectedRay.material.opacity = 0.8;
-            if (reflectedRay.line) {
-                reflectedRay.line.visible = (color != '0x808080');
-            }
-            reflectedRay.visible = (color != '0x808080');
+            reflectedRay.material.opacity = 0.6;
+            reflectedRay.material.linewidth = calculateThickness(amplitude, 1); // Adjust thickness based on amplitude
+
             rays.push(reflectedRay);
             scene.add(reflectedRay);
-
         }
 
-        function calculateThickness(amplitude) {
-            // Define the minimum and maximum thickness values for the rays
-            const minThickness = 1; // Minimum thickness
-            const maxThickness = 20; // Maximum thickness
+        function calculateIntersectionWithRoom(origin, direction) {
+            const halfDimension = roomCubeDimension / 2;
+            let tMin = Infinity;
+            let intersectionPoint = new THREE.Vector3();
 
-            // Exponential mapping: y = e^(kx)
-            // Here, we choose a suitable value for 'k' to control the rate of increase
-            const k = 5; // You can adjust this value based on the desired sensitivity
+            const planes = [
+                { normal: new THREE.Vector3(1, 0, 0), d: halfDimension },  // +X wall
+                { normal: new THREE.Vector3(-1, 0, 0), d: halfDimension }, // -X wall
+                { normal: new THREE.Vector3(0, 1, 0), d: halfDimension },  // +Y wall
+                { normal: new THREE.Vector3(0, -1, 0), d: halfDimension }, // -Y wall
+                { normal: new THREE.Vector3(0, 0, 1), d: halfDimension },  // +Z wall
+                { normal: new THREE.Vector3(0, 0, -1), d: halfDimension }  // -Z wall
+            ];
 
-            // Map the range of possible amplitude values to the range of thickness values using the exponential function
-            const mappedThickness = minThickness + (maxThickness - minThickness) * (1 - Math.exp(-k * amplitude));
+            planes.forEach((plane) => {
+                const denominator = plane.normal.dot(direction);
+                if (Math.abs(denominator) > 1e-6) {
+                    const t = (plane.d - plane.normal.dot(origin)) / denominator;
+                    if (t > 0 && t < tMin) {
+                        tMin = t;
+                        intersectionPoint.copy(origin).add(direction.clone().multiplyScalar(t));
+                    }
+                }
+            });
 
+            return clampPointToRoom(intersectionPoint);
+        }
+
+        function calculateThickness(amplitude, k) {
+            const minThickness = 1;
+            const maxThickness = 20;
+            //const k = 5; // Adjust as needed for sensitivity
+            const mappedThickness = minThickness + (Math.pow(amplitude, k) * (maxThickness - minThickness));
             return mappedThickness;
         }
     </script>
