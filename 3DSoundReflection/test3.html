@@ -687,7 +687,7 @@
                 ray.line.material.color.setHex(color);
 
                 // Adjust thickness based on amplitude
-                const thickness = calculateThickness(amplitude, 5);
+                const thickness = calculateThickness(amplitude, 1);
                 ray.line.material.linewidth = thickness;
                 ray.line.geometry.computeBoundingSphere(); // Update bounding sphere for ray
 
@@ -782,7 +782,7 @@
             const intersectionPoint = calculateIntersectionWithRoom(lastPoint, reflectionDirection);
 
             // Create a fallback material in case ray.material is undefined
-            const fallbackMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: calculateThickness(amplitude, 10), opacity: 0.6, transparent: true });
+            const fallbackMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: calculateThickness(amplitude, 5), opacity: 0.6, transparent: true });
 
             // Use ray.material if available, otherwise use fallbackMaterial
             const material = ray.material ? ray.material.clone() : fallbackMaterial;
@@ -792,7 +792,7 @@
             const reflectedRay = new THREE.Line(reflectedRayGeometry, material);
             reflectedRay.material.color.setHex(color);
             reflectedRay.material.opacity = 0.6;
-            reflectedRay.material.linewidth = calculateThickness(amplitude, 10); // Adjust thickness based on amplitude
+            reflectedRay.material.linewidth = calculateThickness(amplitude, 5); // Adjust thickness based on amplitude
 
             rays.push(reflectedRay);
             scene.add(reflectedRay);
