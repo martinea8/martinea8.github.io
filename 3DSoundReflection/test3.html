@@ -767,8 +767,8 @@
             reflectedRayGeometry.setFromPoints([lastPoint, reflectedEndPoint]);
             const reflectedRay = new THREE.Line(reflectedRayGeometry, ray.material);
             reflectedRay.material.color.setHex(color);
-            const intensity = Math.max(0.6, amplitude); // Minimum intensity
-            reflectedRay.material.opacity = intensity;
+            //const intensity = Math.max(0.6, amplitude); // Minimum intensity
+            reflectedRay.material.opacity = 0.6;
             if (reflectedRay.line) {
                 reflectedRay.line.visible = (color != '0x808080');
             }
