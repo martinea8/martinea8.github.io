@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -842,7 +842,7 @@
         }
 
         function calculateThickness(amplitude, k) {
-            const minThickness = 1;
+            const minThickness = 5;
             const maxThickness = 20;
             //const k = 5; // Adjust as needed for sensitivity
             const mappedThickness = minThickness + (Math.pow(amplitude, k) * (maxThickness - minThickness));
