@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -87,9 +87,9 @@
         let particleSystem; // Variable to hold the particle system
         let rays = []; // Array to hold the rays  
         let isSoundPlaying = false;
-        let showCount = 0;
-        let lastUpdateTime = 0; // Define lastUpdateTime globally
-        const updateInterval = 1000; // Update interval in milliseconds
+        //let lastUpdateTime = 0; // Define lastUpdateTime globally
+        //const updateInterval = 1000; // Update interval in milliseconds
+        let lastNote = '';
 
         // Initialize Three.js scene, camera, and renderer
         let scene = new THREE.Scene();
@@ -431,6 +431,8 @@
 
             makeRoughBall(ball, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
 
+            updateRays(color, dataArrayAmp);
+
             const hasAudioData = (averageFrequency > 12);
 
             if (hasAudioData) {
@@ -457,8 +459,6 @@
                 var particleMaterial = particleSystem.material;
                 var size = modulate(overallAvg, 0, 255, 0.1, 2);
                 particleMaterial.size = size;
-
-                updateRays(color, dataArrayAmp);
             }
             else {
                 if (rays.length > 0) {
@@ -482,7 +482,8 @@
                 lblAudioFile.hidden = false;
                 rays = [];
                 lblNote.innerHTML = '';
-                lastUpdateTime = 0;
+                //lastUpdateTime = 0;
+                lastNote = '';
             }
         }
 
@@ -672,6 +673,7 @@
         function updateRays(color, dataArrayAmp) {
             const amplitude = avg(dataArrayAmp) / 255;
             const currentTime = Date.now();
+            const lblNote = document.getElementById("lblNote");
 
             // Filter out incident rays with a wall object
             const incidentRays = rays.filter(ray => ray.wall);
@@ -696,7 +698,8 @@
                 ray.line.material.linewidth = thickness;
                 ray.line.geometry.computeBoundingSphere(); // Update bounding sphere for ray
 
-                if (lastUpdateTime != 0 && currentTime - lastUpdateTime >= updateInterval) {
+                //if (lastUpdateTime != 0 && currentTime - lastUpdateTime >= updateInterval) {
+                if (lastNote != '' && lastNote != lblNote.innerHTML) {
                     //debugger;
                     // Show/hide rays based on random selection
                     if (indicesToShow.includes(index)) {
@@ -708,7 +711,7 @@
                     }
                 }
                 else {
-                    if (lastUpdateTime == 0) {
+                    if (lastNote == '') {
                         ray.line.visible = true;
                         ray.visible = true;
                     }
@@ -722,8 +725,11 @@
                     hideReflectedRay(ray);
                 }
             });
-            if (currentTime - lastUpdateTime >= updateInterval) {
-                lastUpdateTime = currentTime;
+            // if (currentTime - lastUpdateTime >= updateInterval) {
+            //     lastUpdateTime = currentTime;
+            // }
+            if (lastNote != lblNote.innerHTML) {
+                lastNote = lblNote.innerHTML;
             }
         }
 
@@ -842,7 +848,7 @@
         }
 
         function calculateThickness(amplitude, k) {
-            const minThickness = 5;
+            const minThickness = 2;
             const maxThickness = 20;
             //const k = 5; // Adjust as needed for sensitivity
             const mappedThickness = minThickness + (Math.pow(amplitude, k) * (maxThickness - minThickness));
