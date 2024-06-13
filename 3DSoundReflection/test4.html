@@ -678,28 +678,6 @@
             }
         }
 
-        // Function to generate an array of random indices
-        function getRandomIndices(maxIndex, numIndices) {
-            const indices = [];
-            while (indices.length < numIndices) {
-                const randomIndex = Math.floor(Math.random() * maxIndex);
-                if (!indices.includes(randomIndex)) {
-                    indices.push(randomIndex);
-                }
-            }
-            return indices;
-        }
-        function clampPointToRoom(point) {
-            const halfDimension = roomCubeDimension / 2;
-
-            // Clamp the point's coordinates to the room boundaries
-            point.x = Math.max(-halfDimension, Math.min(halfDimension, point.x));
-            point.y = Math.max(-halfDimension, Math.min(halfDimension, point.y));
-            point.z = Math.max(-halfDimension, Math.min(halfDimension, point.z));
-
-            return point;
-        }
-
         function reflectRay(ray, color, amplitude) {
             // Get the last point of the current ray
             const points = ray.line ? ray.line.geometry.attributes.position.array : ray.geometry.attributes.position.array;
@@ -762,6 +740,28 @@
 
             rays.push(reflectedRay);
             scene.add(reflectedRay);
+        }
+                
+        // Function to generate an array of random indices
+        function getRandomIndices(maxIndex, numIndices) {
+            const indices = [];
+            while (indices.length < numIndices) {
+                const randomIndex = Math.floor(Math.random() * maxIndex);
+                if (!indices.includes(randomIndex)) {
+                    indices.push(randomIndex);
+                }
+            }
+            return indices;
+        }
+        function clampPointToRoom(point) {
+            const halfDimension = roomCubeDimension / 2;
+
+            // Clamp the point's coordinates to the room boundaries
+            point.x = Math.max(-halfDimension, Math.min(halfDimension, point.x));
+            point.y = Math.max(-halfDimension, Math.min(halfDimension, point.y));
+            point.z = Math.max(-halfDimension, Math.min(halfDimension, point.z));
+
+            return point;
         }
 
         function calculateIntersectionWithRoom(origin, direction) {
