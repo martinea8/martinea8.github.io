@@ -530,7 +530,7 @@
         }
 
         function createRays() {
-            const rayMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+            const rayMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide });
             const boomboxPosition = new THREE.Vector3(boomBoxPositionX, boomBoxPositionY, boomBoxPositionZ);
 
             // Create three rays for each wall
@@ -723,7 +723,7 @@
             const intersectionPoint = calculateIntersectionWithRoom(lastPoint, reflectionDirection);
 
             // Create a fallback material in case ray.material is undefined
-            const fallbackMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: calculateThickness(amplitude, 5), opacity: 0.6, transparent: true });
+            const fallbackMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: calculateThickness(amplitude, 5), side: THREE.DoubleSide, opacity: 0.6, transparent: true });
 
             // Use ray.material if available, otherwise use fallbackMaterial
             const material = ray.material ? ray.material.clone() : fallbackMaterial;
