@@ -17,15 +17,9 @@
 		clearTimeout(timer);
 		timer = setTimeout(mouseStopped, 300);
 	});
-
-	window.addEventListener("click", function(){
-		pacmanVideo.play();
-		pacmanVideo.pause();
-	},false);
-		
 	</script>
-	<style>
-			
+	
+	<style>		
 	body {
 		margin: 0px;
 		background-color: black;
@@ -33,12 +27,12 @@
 	.video-container {
 		display: flex;
 	}
-    video {
-        height: 100vh;
-        width: 100%;
-        object-fit: contain;
-        position: absolute;
-    }
+	video {
+        	height: 100vh;
+        	width: 100%;
+        	object-fit: contain;
+        	position: absolute;
+    	}
 	</style>
 </head>
 <body>
