@@ -17,6 +17,12 @@
 		clearTimeout(timer);
 		timer = setTimeout(mouseStopped, 300);
 	});
+
+	window.addEventListener("click", function(){
+		pacmanVideo.play();
+		pacmanVideo.pause();
+	},false);
+		
 	</script>
 	<style>
 			
@@ -37,7 +43,7 @@
 </head>
 <body>
 <div class="video-container">
-    <video id="pacmanVideo" playsinline poster="./pacman_thumbnail.jpg" onclick="this.play();" onmousemove="this.play();">
+    <video id="pacmanVideo" playsinline poster="./pacman_thumbnail.jpg" onmousemove="this.play();">
     <source src="./pacman%20(360p).mp4" type="video/mp4">
     </video>    
 </div>
