@@ -23,7 +23,6 @@
 	body {
 		margin: 0px;
 		background-color: blue;
-		-webkit-appearance: none;
 	}
 	.video-container {
 		display: flex;
@@ -39,8 +38,8 @@
 <body>
 <div class="video-container">
 	Hello!
-    <video id="pacmanVideo">
-    <source src="./pacman%20(360p).mp4" type="video/ogg">
+    <video id="pacmanVideo" playsinline onmousemove="this.play();">
+    <source src="./pacman%20(360p).mp4" type="video/mp4">
     </video>    
 </div>
 </body>	
