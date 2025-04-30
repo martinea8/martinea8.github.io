@@ -754,6 +754,7 @@
         //ray.line.material.color.setHex(color);
         const colorHex = noteToColor(activeNotes[index % activeNotes.length]);
         ray.line.material.color.setHex(colorHex);
+        ray.noteColor = colorHex;  // Save the assigned color
 
         // Adjust thickness based on amplitude
         const thickness = calculateThickness(amplitude, 1);
@@ -845,7 +846,7 @@
         // Create the new reflected ray
         const reflectedRayGeometry = new THREE.BufferGeometry().setFromPoints([lastPoint, intersectionPoint]);
         const reflectedRay = new THREE.Line(reflectedRayGeometry, material);
-        reflectedRay.material.color.setHex(colorHex);
+        reflectedRay.material.color.setHex(ray.noteColor);
         reflectedRay.material.opacity = 0.6;
         reflectedRay.material.linewidth = calculateThickness(amplitude, 5); // Adjust thickness based on amplitude
 
